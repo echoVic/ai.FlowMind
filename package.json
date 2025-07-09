@@ -1,5 +1,5 @@
 {
-  "name": "AI架构图生成器",
+  "name": "FlowMind",
   "version": "1.0.0",
   "dependencies": {
     "@langchain/anthropic": "^0.3.0",

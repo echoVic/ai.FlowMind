@@ -14,7 +14,8 @@
       "Bash(grep:*)",
       "WebFetch(domain:www.heroui.com)",
       "Bash(npx:*)",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(git remote add:*)"
     ],
     "deny": []
   }

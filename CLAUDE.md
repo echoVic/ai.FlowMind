@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a React-based AI-powered diagram generation application that allows users to create Mermaid diagrams through natural language descriptions. The application features a three-panel layout with input, code editing, and live preview capabilities.
+FlowMind 是一个基于 React 和 AI 的智能流程图生成应用，用户可以通过自然语言描述快速创建 Mermaid 图表。应用采用三面板布局设计，提供输入、代码编辑和实时预览功能。
 
 **重要架构变更**: ✅ 项目已完全重构为基于 LangChain.js 的纯前端架构，移除了所有服务端代码，实现了真正的无服务器架构。
 
