@@ -144,6 +144,9 @@ export class AgentManager {
     const arkApiKey = process.env.ARK_API_KEY;
     const openaiApiKey = process.env.OPENAI_API_KEY;
     const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    
+    // 默认豆包 API Key（如果没有配置环境变量）
+    const defaultDoubaoKey = '1ddfaee1-1350-46b0-ab87-2db988d24d4b';
 
     if (arkApiKey) {
       this.registerAgent('volcengine-default', {
@@ -176,7 +179,17 @@ export class AgentManager {
       });
       this.setDefaultAgent('anthropic-default');
     } else {
-      console.warn('No API keys found in environment variables. Please register agents manually.');
+      // 使用默认豆包配置
+      console.log('使用默认豆包 API Key 配置');
+      this.registerAgent('doubao-default', {
+        apiKey: defaultDoubaoKey,
+        provider: 'volcengine',
+        modelName: 'ep-20250617131345-rshkp', // 豆包默认端点
+        temperature: 0.7,
+        maxTokens: 2048,
+        enableMemory: false
+      });
+      this.setDefaultAgent('doubao-default');
     }
   }
 

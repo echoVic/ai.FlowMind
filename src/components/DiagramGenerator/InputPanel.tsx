@@ -2,12 +2,12 @@
  * 输入面板组件
  * 简化模型选择，专注火山引擎调试
  */
-import React, { useState } from 'react';
-import { useAtom } from 'jotai';
 import { motion } from 'framer-motion';
-import { Sparkles, Lightbulb, Settings } from 'lucide-react';
-import { naturalLanguageInputAtom, currentDiagramAtom, selectedModelAtom } from '../../stores/diagramStore';
+import { useAtom } from 'jotai';
+import { Lightbulb, Settings, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
 import { useDiagramGenerator } from '../../hooks/useDiagramGenerator';
+import { currentDiagramAtom, naturalLanguageInputAtom, selectedModelAtom } from '../../stores/diagramStore';
 import DiagnosticPanel from './DiagnosticPanel';
 
 const InputPanel: React.FC = () => {
@@ -90,9 +90,6 @@ const InputPanel: React.FC = () => {
               </option>
             ))}
           </select>
-          <div className="text-xs text-gray-500">
-            使用服务端转发模式，安全可靠
-          </div>
         </div>
 
         {/* 诊断面板 */}

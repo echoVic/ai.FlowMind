@@ -3,8 +3,10 @@
  * 利用 LangChain 的能力实现可复用的 AI 图表生成
  */
 import { ChatAnthropic } from "@langchain/anthropic";
-import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
+import { BaseChatModel, BaseChatModelCallOptions } from "@langchain/core/language_models/chat_models";
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { ChatResult } from "@langchain/core/outputs";
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
 
@@ -68,8 +70,9 @@ export class VolcengineLangChainProvider extends BaseChatModel {
 
   async _generate(
     messages: BaseMessage[],
-    options?: { temperature?: number; maxTokens?: number }
-  ): Promise<{ generations: { text: string; message: AIMessage }[] }> {
+    options: BaseChatModelCallOptions,
+    runManager?: CallbackManagerForLLMRun
+  ): Promise<ChatResult> {
     try {
       const openaiMessages = messages.map(msg => ({
         role: msg._getType() === 'system' ? 'system' : 
@@ -86,8 +89,8 @@ export class VolcengineLangChainProvider extends BaseChatModel {
         body: JSON.stringify({
           model: this.modelName,
           messages: openaiMessages,
-          temperature: options?.temperature || this.temperature,
-          max_tokens: options?.maxTokens || this.maxTokens,
+          temperature: (options as any).temperature || this.temperature,
+          max_tokens: (options as any).maxTokens || this.maxTokens,
         }),
       });
 
@@ -307,32 +310,35 @@ ${request.existingCode}
    */
   private parseResponse(response: string, request: DiagramGenerationRequest): DiagramGenerationResult {
     try {
+      console.log('DiagramAgent: 开始解析响应');
+      console.log('DiagramAgent: 原始响应:', response.substring(0, 200) + '...');
+      
       // 尝试解析JSON响应
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('无法找到JSON响应');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
-      
-      // 验证响应格式
-      const schema = z.object({
-        mermaidCode: z.string(),
-        explanation: z.string(),
-        suggestions: z.array(z.string()),
-        diagramType: z.string()
-      });
+      let jsonString = jsonMatch[0];
+      console.log('DiagramAgent: 提取的JSON字符串:', jsonString.substring(0, 100) + '...');
 
-      const validated = schema.parse(parsed);
-
-      return {
-        ...validated,
-        metadata: {
-          model: this.model._llmType(),
-          provider: this.getProviderName(),
-          usage: this.extractUsageInfo(response)
-        }
-      };
+      // 修复JSON中的控制字符问题
+      try {
+        // 直接解析，如果失败则进行修复
+        const parsed = JSON.parse(jsonString);
+        const validated = this.validateAndCleanResponse(parsed);
+        return this.buildResult(validated, request);
+      } catch (parseError) {
+        console.log('DiagramAgent: JSON解析失败，尝试修复:', parseError.message);
+        
+        // 尝试修复JSON字符串
+        const fixedJsonString = this.fixJsonString(jsonString);
+        console.log('DiagramAgent: 修复后的JSON:', fixedJsonString.substring(0, 100) + '...');
+        
+        const parsed = JSON.parse(fixedJsonString);
+        const validated = this.validateAndCleanResponse(parsed);
+        return this.buildResult(validated, request);
+      }
 
     } catch (error) {
       console.error('DiagramAgent: 响应解析失败', error);
@@ -349,6 +355,122 @@ ${request.existingCode}
         }
       };
     }
+  }
+
+  /**
+   * 修复JSON字符串中的控制字符
+   */
+  private fixJsonString(jsonString: string): string {
+    try {
+      // 方法1：尝试更简单的修复方法
+      // 首先尝试简单地转义未转义的换行符
+      let fixed = jsonString
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t');
+      
+      // 测试是否能解析
+      JSON.parse(fixed);
+      return fixed;
+    } catch (error) {
+      console.log('DiagramAgent: 简单修复失败，尝试更复杂的修复');
+      
+      // 方法2：更彻底的修复
+      try {
+        // 提取mermaidCode字段的值并单独处理
+        const mermaidCodeMatch = jsonString.match(/"mermaidCode"\s*:\s*"([^"]*(?:\\.[^"]*)*)"(?=\s*,|\s*})/);
+        if (mermaidCodeMatch) {
+          const originalValue = mermaidCodeMatch[1];
+          // 正确转义Mermaid代码中的特殊字符
+          const escapedValue = originalValue
+            .replace(/\\/g, '\\\\')  // 转义反斜杠
+            .replace(/"/g, '\\"')    // 转义双引号
+            .replace(/\n/g, '\\n')   // 转义换行符
+            .replace(/\r/g, '\\r')   // 转义回车符
+            .replace(/\t/g, '\\t');  // 转义制表符
+          
+          // 替换原始值
+          const fixedJson = jsonString.replace(mermaidCodeMatch[0], `"mermaidCode": "${escapedValue}"`);
+          
+          // 测试解析
+          JSON.parse(fixedJson);
+          return fixedJson;
+        }
+      } catch (error2) {
+        console.log('DiagramAgent: 复杂修复也失败');
+      }
+      
+      // 方法3：最后的兜底方案 - 尝试重新构建JSON
+      try {
+        // 提取字段值（使用更宽松的匹配）
+        const mermaidCodeMatch = jsonString.match(/"mermaidCode"\s*:\s*"([\s\S]*?)(?=",\s*"explanation"|"})/);
+        const explanationMatch = jsonString.match(/"explanation"\s*:\s*"([^"]*(?:\\.[^"]*)*)"(?=\s*,|\s*})/);
+        const suggestionsMatch = jsonString.match(/"suggestions"\s*:\s*\[([\s\S]*?)\](?=\s*,|\s*})/);
+        const diagramTypeMatch = jsonString.match(/"diagramType"\s*:\s*"([^"]*)"(?=\s*,|\s*})/);
+        
+        if (mermaidCodeMatch && explanationMatch && diagramTypeMatch) {
+          // 重新构建JSON
+          const cleanedJson = {
+            mermaidCode: mermaidCodeMatch[1],
+            explanation: explanationMatch[1],
+            suggestions: suggestionsMatch ? JSON.parse(`[${suggestionsMatch[1]}]`) : [],
+            diagramType: diagramTypeMatch[1]
+          };
+          
+          return JSON.stringify(cleanedJson);
+        }
+      } catch (error3) {
+        console.log('DiagramAgent: 重构JSON也失败');
+      }
+      
+      // 如果所有方法都失败，返回原始字符串
+      return jsonString;
+    }
+  }
+
+  /**
+   * 验证和清理响应数据
+   */
+  private validateAndCleanResponse(parsed: any): any {
+    // 验证响应格式
+    const schema = z.object({
+      mermaidCode: z.string(),
+      explanation: z.string(),
+      suggestions: z.array(z.string()),
+      diagramType: z.string()
+    });
+
+    return schema.parse(parsed);
+  }
+
+  /**
+   * 构建最终结果
+   */
+  private buildResult(validated: any, request: DiagramGenerationRequest): DiagramGenerationResult {
+    // 清理 mermaidCode，移除代码块标记
+    let cleanedMermaidCode = validated.mermaidCode;
+    
+    // 移除可能的代码块标记
+    cleanedMermaidCode = cleanedMermaidCode
+      .replace(/^```mermaid\s*\n?/i, '')  // 移除开头的 ```mermaid
+      .replace(/^```\s*\n?/i, '')        // 移除开头的 ```
+      .replace(/\n?```\s*$/i, '')        // 移除结尾的 ```
+      .trim();                           // 移除前后空白
+
+    console.log('DiagramAgent: 原始代码:', validated.mermaidCode);
+    console.log('DiagramAgent: 清理后代码:', cleanedMermaidCode);
+
+    return {
+      mermaidCode: cleanedMermaidCode,
+      explanation: validated.explanation,
+      suggestions: validated.suggestions,
+      diagramType: validated.diagramType,
+      metadata: {
+        model: this.model._llmType(),
+        provider: this.getProviderName(),
+        usage: this.extractUsageInfo('')
+      }
+    };
   }
 
   /**

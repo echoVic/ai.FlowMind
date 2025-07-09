@@ -120,17 +120,27 @@ const DiagramPreview: React.FC = () => {
       const container = containerRef.current;
       container.innerHTML = '';
 
+      // 清理 mermaidCode，移除可能的代码块标记（额外保护）
+      let cleanedCode = currentDiagram.mermaidCode;
+      cleanedCode = cleanedCode
+        .replace(/^```mermaid\s*\n?/i, '')  // 移除开头的 ```mermaid
+        .replace(/^```\s*\n?/i, '')        // 移除开头的 ```
+        .replace(/\n?```\s*$/i, '')        // 移除结尾的 ```
+        .trim();                           // 移除前后空白
+
+      console.log('DiagramPreview: 使用清理后的代码进行渲染');
+
       // 创建临时div用于验证语法
       const tempId = `mermaid-temp-${currentRenderId}`;
       
       // 先验证语法
-      await mermaid.parse(currentDiagram.mermaidCode);
+      await mermaid.parse(cleanedCode);
       
       // 如果组件已卸载，停止渲染
       if (currentRenderId !== renderIdRef.current) return;
 
       // 渲染图表
-      const { svg } = await mermaid.render(tempId, currentDiagram.mermaidCode);
+      const { svg } = await mermaid.render(tempId, cleanedCode);
       
       // 再次检查是否还是最新的渲染请求
       if (currentRenderId !== renderIdRef.current) return;

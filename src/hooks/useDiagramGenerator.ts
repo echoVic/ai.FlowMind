@@ -6,7 +6,7 @@ import { useAtom } from 'jotai';
 import { toast } from 'react-hot-toast';
 import type { DiagramGenerationRequest } from '../agents/DiagramAgent';
 import { agentManager } from '../services/AgentManager';
-import type { AIModelConfig, DirectCallConfig } from '../shared/types';
+import type { AIModelConfig, DirectCallConfig, DiagramData } from '../shared/types';
 import {
   aiResponseAtom,
   availableModelsAtom,
@@ -16,8 +16,7 @@ import {
   isGeneratingAtom,
   isOptimizingAtom,
   naturalLanguageInputAtom,
-  selectedModelAtom,
-  useDirectCallAtom
+  selectedModelAtom
 } from '../stores/diagramStore';
 
 export const useDiagramGenerator = () => {
@@ -29,8 +28,11 @@ export const useDiagramGenerator = () => {
   const [, setErrorMessage] = useAtom(errorMessageAtom);
   const [selectedModel] = useAtom(selectedModelAtom);
   const [availableModels] = useAtom(availableModelsAtom);
-  const [useDirectCall] = useAtom(useDirectCallAtom);
   const [directCallConfig] = useAtom(directCallConfigAtom);
+
+  // 类型断言修复 TypeScript 错误
+  const safeSetErrorMessage = setErrorMessage as (value: string | null) => void;
+  const safeSetAiResponse = setAiResponse as (value: any) => void;
 
   /**
    * 注册或更新 Agent
@@ -51,7 +53,8 @@ export const useDiagramGenerator = () => {
       return agentKey;
     } catch (error) {
       console.error(`Agent 注册失败: ${agentKey}`, error);
-      throw new Error(`Agent 注册失败: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Agent 注册失败: ${errorMessage}`);
     }
   };
 
@@ -63,7 +66,7 @@ export const useDiagramGenerator = () => {
     }
 
     setIsGenerating(true);
-    setErrorMessage(null);
+    safeSetErrorMessage(null);
 
     try {
       console.log('=== 基于 Agent 的图表生成开始 ===');
@@ -71,20 +74,27 @@ export const useDiagramGenerator = () => {
       console.log('选择的模型:', selectedModel);
       console.log('可用模型数量:', availableModels.length);
 
-      // 获取模型配置
-      const modelInfo = availableModels.find(m => m.name === selectedModel);
-      if (!modelInfo) {
-        throw new Error('未找到选择的模型配置');
-      }
+      // 尝试使用默认 Agent 或查找现有 Agent
+      let agentKey: string | undefined;
+      
+      // 如果有可用模型配置，使用传统方式
+      if (availableModels.length > 0) {
+        const modelInfo = availableModels.find(m => m.name === selectedModel);
+        if (!modelInfo) {
+          throw new Error('未找到选择的模型配置');
+        }
 
-      // 获取提供商配置
-      const providerConfig = directCallConfig[modelInfo.provider];
-      if (!providerConfig?.apiKey) {
-        throw new Error(`请先配置 ${modelInfo.provider} 的 API 密钥`);
-      }
+        const providerConfig = directCallConfig[modelInfo.provider];
+        if (!providerConfig?.apiKey) {
+          throw new Error(`请先配置 ${modelInfo.provider} 的 API 密钥`);
+        }
 
-      // 注册或更新 Agent
-      const agentKey = ensureAgentRegistered(modelInfo, providerConfig);
+        agentKey = ensureAgentRegistered(modelInfo, providerConfig);
+      } else {
+        // 使用默认 Agent
+        console.log('使用默认 Agent');
+        agentKey = undefined; // 使用默认 Agent
+      }
 
       // 构建生成请求
       const request: DiagramGenerationRequest = {
@@ -94,6 +104,7 @@ export const useDiagramGenerator = () => {
       };
 
       console.log('发送给 Agent 的请求:', request);
+      console.log('使用的 Agent:', agentKey || 'default');
 
       // 使用 Agent 生成图表
       const result = await agentManager.generateDiagram(request, agentKey);
@@ -109,27 +120,29 @@ export const useDiagramGenerator = () => {
         metadata: result.metadata
       };
 
-      setAiResponse(frontendResult);
+      safeSetAiResponse(frontendResult);
       setCurrentDiagram(prev => ({
         ...prev,
         description: input,
         mermaidCode: result.mermaidCode,
-        diagramType: result.diagramType
+        diagramType: result.diagramType as DiagramData['diagramType']
       }));
 
-      toast.success(`架构图生成成功！(使用 ${modelInfo.provider} Agent)`);
+      const providerName = result.metadata.provider || 'AI';
+      toast.success(`架构图生成成功！(使用 ${providerName})`);
 
     } catch (error) {
       console.error('Agent 图表生成失败:', error);
-      setErrorMessage(error.message);
+      safeSetErrorMessage(error instanceof Error ? error.message : String(error));
       
       // 提供具体的错误建议
-      if (error.message.includes('API') || error.message.includes('密钥')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('API') || errorMessage.includes('密钥')) {
         toast.error('API 密钥问题，请检查配置');
-      } else if (error.message.includes('Agent')) {
+      } else if (errorMessage.includes('Agent')) {
         toast.error('Agent 初始化失败，请检查配置');
       } else {
-        toast.error(error.message || '生成失败，请重试');
+        toast.error(errorMessage || '生成失败，请重试');
       }
     } finally {
       setIsGenerating(false);
@@ -148,27 +161,34 @@ export const useDiagramGenerator = () => {
     }
 
     setIsOptimizing(true);
-    setErrorMessage(null);
+    safeSetErrorMessage(null);
 
     try {
       console.log('=== 基于 Agent 的图表优化开始 ===');
       console.log('优化要求:', requirements);
       console.log('现有代码长度:', currentDiagram.mermaidCode.length);
 
-      // 获取模型配置
-      const modelInfo = availableModels.find(m => m.name === selectedModel);
-      if (!modelInfo) {
-        throw new Error('未找到选择的模型配置');
-      }
+      // 尝试使用默认 Agent 或查找现有 Agent
+      let agentKey: string | undefined;
+      
+      // 如果有可用模型配置，使用传统方式
+      if (availableModels.length > 0) {
+        const modelInfo = availableModels.find(m => m.name === selectedModel);
+        if (!modelInfo) {
+          throw new Error('未找到选择的模型配置');
+        }
 
-      // 获取提供商配置
-      const providerConfig = directCallConfig[modelInfo.provider];
-      if (!providerConfig?.apiKey) {
-        throw new Error(`请先配置 ${modelInfo.provider} 的 API 密钥`);
-      }
+        const providerConfig = directCallConfig[modelInfo.provider];
+        if (!providerConfig?.apiKey) {
+          throw new Error(`请先配置 ${modelInfo.provider} 的 API 密钥`);
+        }
 
-      // 注册或更新 Agent
-      const agentKey = ensureAgentRegistered(modelInfo, providerConfig);
+        agentKey = ensureAgentRegistered(modelInfo, providerConfig);
+      } else {
+        // 使用默认 Agent
+        console.log('使用默认 Agent');
+        agentKey = undefined;
+      }
 
       // 使用 Agent 优化图表
       const result = await agentManager.optimizeDiagram(
@@ -188,19 +208,21 @@ export const useDiagramGenerator = () => {
         metadata: result.metadata
       };
 
-      setAiResponse(frontendResult);
+      safeSetAiResponse(frontendResult);
       setCurrentDiagram(prev => ({
         ...prev,
         mermaidCode: result.mermaidCode,
-        diagramType: result.diagramType
+        diagramType: result.diagramType as DiagramData['diagramType']
       }));
 
-      toast.success(`图表优化成功！(使用 ${modelInfo.provider} Agent)`);
+      const providerName = result.metadata.provider || 'AI';
+      toast.success(`图表优化成功！(使用 ${providerName})`);
 
     } catch (error) {
       console.error('Agent 图表优化失败:', error);
-      setErrorMessage(error.message);
-      toast.error(error.message || '优化失败，请重试');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      safeSetErrorMessage(errorMessage);
+      toast.error(errorMessage || '优化失败，请重试');
     } finally {
       setIsOptimizing(false);
     }
@@ -248,10 +270,11 @@ export const useDiagramGenerator = () => {
 
     } catch (error) {
       console.error('连接验证异常:', error);
-      toast.error(error.message || '验证失败');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      toast.error(errorMessage || '验证失败');
       return {
         success: false,
-        message: error.message
+        message: errorMessage
       };
     }
   };
@@ -279,7 +302,8 @@ export const useDiagramGenerator = () => {
         const validation = await validateConnection();
         console.log('- 连接测试结果:', validation.success ? '成功' : '失败');
       } catch (error) {
-        console.log('- 连接测试异常:', error.message);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.log('- 连接测试异常:', errorMessage);
       }
     }
   };
@@ -290,13 +314,15 @@ export const useDiagramGenerator = () => {
 
   const resetDiagram = () => {
     setCurrentDiagram({
+      title: '',
       mermaidCode: '',
       description: '',
-      diagramType: 'flowchart'
+      diagramType: 'flowchart',
+      tags: []
     });
     setNaturalInput('');
-    setAiResponse(null);
-    setErrorMessage(null);
+    safeSetAiResponse(null);
+    safeSetErrorMessage(null);
     agentManager.clearAllHistory();
   };
 

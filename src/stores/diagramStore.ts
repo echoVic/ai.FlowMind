@@ -3,7 +3,7 @@
  * 修正模型选择的默认值，确保与服务端一致
  */
 import { atom } from 'jotai';
-import type { DiagramData, AIResponse, AIModelConfig, DirectCallConfig } from '../shared/types';
+import type { AIModelConfig, AIResponse, DiagramData, DirectCallConfig } from '../shared/types';
 
 // 当前架构图数据
 export const currentDiagramAtom = atom<DiagramData>({
@@ -32,7 +32,7 @@ export const aiResponseAtom = atom<AIResponse | null>(null);
 
 // AI模型相关状态 - 修正默认值
 export const availableModelsAtom = atom<AIModelConfig[]>([]);
-export const selectedModelAtom = atom<string>('doubao-seed-1.6'); // 确保与服务端注册的模型名称一致
+export const selectedModelAtom = atom<string>('ep-20250617131345-rshkp'); // 豆包默认端点，与 Agent 配置一致
 export const isLoadingModelsAtom = atom<boolean>(false);
 
 // 直接调用配置（暂时不使用，但保留接口）
@@ -56,7 +56,7 @@ export const diagramHistoryAtom = atom<DiagramData[]>([]);
 // 预览配置
 export const previewConfigAtom = atom({
   theme: 'default' as const,
-  scale: 0.7,
+  scale: 1,
   panZoom: true
 });
 
