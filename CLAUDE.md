@@ -92,15 +92,47 @@ Primary atoms in `src/stores/diagramStore.ts`:
 
 ## Environment Setup
 
-### Required Environment Variables (可选，用于默认 Agent)
-- `ARK_API_KEY` - Volcengine API key for Doubao models
-- `OPENAI_API_KEY` - OpenAI API key
-- `ANTHROPIC_API_KEY` - Claude API key
+### 环境变量配置 (推荐)
 
-**注意**: 这些环境变量是可选的。用户也可以通过前端界面配置 API 密钥。
+**步骤1：创建环境变量文件**
+```bash
+# 复制示例文件
+cp .env.example .env.local
+```
 
-### Agent Configuration
-用户通过前端界面配置 API 密钥，Agent Manager 会自动：
+**步骤2：编辑 .env.local 文件**
+```bash
+# 豆包 (火山引擎) 配置
+ARK_API_KEY=your-volcengine-api-key
+ARK_MODEL_NAME=ep-20250617131345-rshkp
+ARK_ENDPOINT=https://ark.cn-beijing.volces.com/api/v3
+
+# OpenAI 配置 (可选)
+# OPENAI_API_KEY=your-openai-api-key
+# OPENAI_MODEL_NAME=gpt-4
+
+# Claude 配置 (可选)
+# ANTHROPIC_API_KEY=your-anthropic-api-key
+# ANTHROPIC_MODEL_NAME=claude-3-sonnet-20240229
+
+# 默认配置
+DEFAULT_TEMPERATURE=0.7
+DEFAULT_MAX_TOKENS=2048
+```
+
+**优先级顺序**：
+1. 火山引擎 (ARK_API_KEY) - 推荐
+2. OpenAI (OPENAI_API_KEY)
+3. Claude (ANTHROPIC_API_KEY)
+
+**注意事项**：
+- `.env.local` 文件已在 `.gitignore` 中，不会被提交到版本控制
+- 如果未配置环境变量，用户可以通过前端界面手动添加 Agent
+- 支持在 Vercel 等平台通过环境变量配置
+
+### 手动配置 Agent (可选)
+
+如果不使用环境变量，用户也可以通过前端界面配置 API 密钥，Agent Manager 会自动：
 1. 注册对应的 Agent 实例
 2. 根据提供商类型创建正确的 LangChain 模型
 3. 处理 API 调用和错误重试

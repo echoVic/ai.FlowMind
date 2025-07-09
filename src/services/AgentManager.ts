@@ -140,56 +140,63 @@ export class AgentManager {
    * 初始化默认 Agent
    */
   private initializeDefaultAgent(): void {
-    // 尝试从环境变量获取默认配置
-    const arkApiKey = process.env.ARK_API_KEY;
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    // 从环境变量获取配置
+    const arkApiKey = process.env.NEXT_PUBLIC_ARK_API_KEY;
+    const arkModelName = process.env.NEXT_PUBLIC_ARK_MODEL_NAME || 'ep-20250617131345-rshkp';
+    const arkEndpoint = process.env.NEXT_PUBLIC_ARK_ENDPOINT || 'https://ark.cn-beijing.volces.com/api/v3';
     
-    // 默认豆包 API Key（如果没有配置环境变量）
-    const defaultDoubaoKey = '1ddfaee1-1350-46b0-ab87-2db988d24d4b';
+    const openaiApiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+    const openaiModelName = process.env.NEXT_PUBLIC_OPENAI_MODEL_NAME || 'gpt-4';
+    
+    const anthropicApiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
+    const anthropicModelName = process.env.NEXT_PUBLIC_ANTHROPIC_MODEL_NAME || 'claude-3-sonnet-20240229';
+    
+    const defaultTemperature = parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7');
+    const defaultMaxTokens = parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || '2048');
 
+    console.log('AgentManager: 初始化默认 Agent');
+    console.log('- NEXT_PUBLIC_ARK_API_KEY:', arkApiKey ? '已配置' : '未配置');
+    console.log('- NEXT_PUBLIC_OPENAI_API_KEY:', openaiApiKey ? '已配置' : '未配置');
+    console.log('- NEXT_PUBLIC_ANTHROPIC_API_KEY:', anthropicApiKey ? '已配置' : '未配置');
+
+    // 优先级：火山引擎 > OpenAI > Claude
     if (arkApiKey) {
+      console.log('使用火山引擎作为默认 Agent');
       this.registerAgent('volcengine-default', {
         apiKey: arkApiKey,
         provider: 'volcengine',
-        modelName: 'ep-20250617131345-rshkp',
-        temperature: 0.7,
-        maxTokens: 2048,
+        modelName: arkModelName,
+        temperature: defaultTemperature,
+        maxTokens: defaultMaxTokens,
         enableMemory: false
       });
       this.setDefaultAgent('volcengine-default');
     } else if (openaiApiKey) {
+      console.log('使用 OpenAI 作为默认 Agent');
       this.registerAgent('openai-default', {
         apiKey: openaiApiKey,
         provider: 'openai',
-        modelName: 'gpt-4',
-        temperature: 0.7,
-        maxTokens: 2048,
+        modelName: openaiModelName,
+        temperature: defaultTemperature,
+        maxTokens: defaultMaxTokens,
         enableMemory: false
       });
       this.setDefaultAgent('openai-default');
     } else if (anthropicApiKey) {
+      console.log('使用 Claude 作为默认 Agent');
       this.registerAgent('anthropic-default', {
         apiKey: anthropicApiKey,
         provider: 'anthropic',
-        modelName: 'claude-3-sonnet-20240229',
-        temperature: 0.7,
-        maxTokens: 2048,
+        modelName: anthropicModelName,
+        temperature: defaultTemperature,
+        maxTokens: defaultMaxTokens,
         enableMemory: false
       });
       this.setDefaultAgent('anthropic-default');
     } else {
-      // 使用默认豆包配置
-      console.log('使用默认豆包 API Key 配置');
-      this.registerAgent('doubao-default', {
-        apiKey: defaultDoubaoKey,
-        provider: 'volcengine',
-        modelName: 'ep-20250617131345-rshkp', // 豆包默认端点
-        temperature: 0.7,
-        maxTokens: 2048,
-        enableMemory: false
-      });
-      this.setDefaultAgent('doubao-default');
+      console.warn('AgentManager: 未找到任何 API 密钥配置');
+      console.warn('请在 .env.local 文件中配置 NEXT_PUBLIC_ARK_API_KEY、NEXT_PUBLIC_OPENAI_API_KEY 或 NEXT_PUBLIC_ANTHROPIC_API_KEY');
+      console.warn('或者通过前端界面手动配置 Agent');
     }
   }
 
