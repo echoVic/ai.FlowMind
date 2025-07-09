@@ -96,6 +96,7 @@ jspm_packages/
 
 # Claude settings (keep local settings private)
 .claude/settings.local.json
+.claude/Conversation/
 
 # Temporary files
 tmp/
