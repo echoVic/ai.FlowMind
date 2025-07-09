@@ -21,10 +21,11 @@ This is a React-based AI-powered diagram generation application that allows user
 - `pnpm install` - Install dependencies
 
 ### Next.js 配置要点
-- `next.config.js` 包含 NextUI 和 Monaco Editor 的特殊配置
+- `next.config.js` 包含 Monaco Editor 的特殊配置
 - 支持 TypeScript 构建时错误忽略（迁移期间）
 - Webpack 配置处理 Monaco Editor 静态资源和 Web Workers
 - 输出模式设置为 'standalone' 支持独立部署
+- 已移除 NextUI/HeroUI 相关配置，使用纯 Tailwind CSS
 
 ## Architecture
 
@@ -54,13 +55,12 @@ This is a React-based AI-powered diagram generation application that allows user
 ### Frontend Structure
 - **Main Layout**: Three-panel interface (Input → Code Editor → Live Preview)
 - **State Management**: Jotai atoms for global state (see `src/stores/diagramStore.ts`)
-- **UI Framework**: NextUI components with Tailwind CSS styling
+- **UI Framework**: 纯 Tailwind CSS 样式，无第三方UI库依赖
 - **Code Editor**: Monaco Editor for Mermaid code editing
 - **Diagram Rendering**: Mermaid.js for diagram visualization
 - **AI Integration**: 通过 Agent Manager 统一管理所有 AI 提供商
 
 ### AI Agent Architecture (基于 LangChain.js)
-- **Base Agent**: `src/agents/BaseAgent.ts` - 通用 Agent 基类，已废弃，被 LangChain Agent 替代
 - **Diagram Agent**: `src/agents/DiagramAgent.ts` - 专用于图表生成的 Agent，基于 LangChain
 - **Agent Manager**: `src/services/AgentManager.ts` - 统一管理多个 Agent 实例
 - **Provider 适配器**: 
@@ -87,7 +87,9 @@ Primary atoms in `src/stores/diagramStore.ts`:
 ### 已移除的部分 ✅
 - ~~`src/server/` 目录~~ - 已完全移除整个服务端代码
 - ~~`src/services/aiDirectClient.ts`~~ - 已删除，被 Agent 系统替代
+- ~~`src/agents/BaseAgent.ts`~~ - 已删除，被 LangChain Agent 替代
 - ~~Hono.js 依赖~~ - 已从 package.json 中移除
+- ~~NextUI/HeroUI 依赖~~ - 已移除，使用纯 Tailwind CSS
 - ~~所有服务端相关的中间件、路由、服务~~ - 已全部清理
 
 ## Environment Setup
@@ -103,27 +105,27 @@ cp .env.example .env.local
 **步骤2：编辑 .env.local 文件**
 ```bash
 # 豆包 (火山引擎) 配置
-ARK_API_KEY=your-volcengine-api-key
-ARK_MODEL_NAME=ep-20250617131345-rshkp
-ARK_ENDPOINT=https://ark.cn-beijing.volces.com/api/v3
+NEXT_PUBLIC_ARK_API_KEY=your-volcengine-api-key
+NEXT_PUBLIC_ARK_MODEL_NAME=ep-20250617131345-rshkp
+NEXT_PUBLIC_ARK_ENDPOINT=https://ark.cn-beijing.volces.com/api/v3
 
 # OpenAI 配置 (可选)
-# OPENAI_API_KEY=your-openai-api-key
-# OPENAI_MODEL_NAME=gpt-4
+# NEXT_PUBLIC_OPENAI_API_KEY=your-openai-api-key
+# NEXT_PUBLIC_OPENAI_MODEL_NAME=gpt-4
 
 # Claude 配置 (可选)
-# ANTHROPIC_API_KEY=your-anthropic-api-key
-# ANTHROPIC_MODEL_NAME=claude-3-sonnet-20240229
+# NEXT_PUBLIC_ANTHROPIC_API_KEY=your-anthropic-api-key
+# NEXT_PUBLIC_ANTHROPIC_MODEL_NAME=claude-3-sonnet-20240229
 
 # 默认配置
-DEFAULT_TEMPERATURE=0.7
-DEFAULT_MAX_TOKENS=2048
+NEXT_PUBLIC_DEFAULT_TEMPERATURE=0.7
+NEXT_PUBLIC_DEFAULT_MAX_TOKENS=2048
 ```
 
 **优先级顺序**：
-1. 火山引擎 (ARK_API_KEY) - 推荐
-2. OpenAI (OPENAI_API_KEY)
-3. Claude (ANTHROPIC_API_KEY)
+1. 火山引擎 (NEXT_PUBLIC_ARK_API_KEY) - 推荐
+2. OpenAI (NEXT_PUBLIC_OPENAI_API_KEY)
+3. Claude (NEXT_PUBLIC_ANTHROPIC_API_KEY)
 
 **注意事项**：
 - `.env.local` 文件已在 `.gitignore` 中，不会被提交到版本控制
@@ -156,9 +158,10 @@ DEFAULT_MAX_TOKENS=2048
 - React types included
 
 ### Styling
-- Tailwind CSS with NextUI plugin
+- 纯 Tailwind CSS 实现，无第三方UI库依赖
 - Dark mode support via `darkMode: 'class'`
 - Responsive three-panel layout
+- 所有组件使用原生HTML元素配合Tailwind样式
 
 ### LangChain.js 集成
 - 版本: `@langchain/core: ^0.3.0`
@@ -196,6 +199,7 @@ DEFAULT_MAX_TOKENS=2048
 - 配置文件: `.npmrc`
 - 锁文件: `pnpm-lock.yaml`
 - 已移除所有服务端相关依赖
+- 已移除 NextUI/HeroUI 依赖，减少包大小
 
 ## 部署说明 ✅ Next.js 迁移完成
 基于 Next.js 14 App Router 的纯前端架构，应用可以部署到：

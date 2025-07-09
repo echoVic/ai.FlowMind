@@ -1,4 +1,3 @@
-import { NextUIProvider } from '@nextui-org/react';
 import { Metadata } from 'next';
 import './globals.css';
 
@@ -15,9 +14,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <NextUIProvider>
-          {children}
-        </NextUIProvider>
+        {children}
       </body>
     </html>
   );

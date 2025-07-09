@@ -36,9 +36,15 @@ const InputPanel: React.FC = () => {
 
   // 可选的模型列表（服务端转发模式）
   const modelOptions = [
-    { value: 'doubao-seed-1.6', label: '豆包 Seed 1.6 (默认)' },
-    { value: 'doubao-pro', label: '豆包 Pro' }
+    { value: 'doubao-seed-1.6', label: '豆包 Seed 1.6 (默认)',icon: '🌋' },
+    { value: 'gpt-4o', label: 'GPT-4o',icon: '🤖' },
+    { value: 'claude-4-sonnet', label: 'Claude 4 Sonnet',icon: '🧠' },
+    { value: 'claude-7-sonnet', label: 'Claude 7 Sonnet',icon: '🧠' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini',icon: '🤖' },
+
   ];
+
+
 
   return (
     <div className="flex-1 flex flex-col">
@@ -86,7 +92,7 @@ const InputPanel: React.FC = () => {
           >
             {modelOptions.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {option.icon} {option.label}
               </option>
             ))}
           </select>

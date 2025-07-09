@@ -10,7 +10,11 @@
       "Bash(pnpm remove:*)",
       "Bash(ls:*)",
       "Bash(curl:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:www.heroui.com)",
+      "Bash(npx:*)",
+      "Bash(pnpm add:*)"
     ],
     "deny": []
   }

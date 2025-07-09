@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@nextui-org/react', '@nextui-org/system', '@nextui-org/theme'],
+  // transpilePackages: [], // HeroUI 已移除，无需转译
   typescript: {
     // 暂时忽略 TypeScript 错误以便完成迁移
     ignoreBuildErrors: true,
