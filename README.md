@@ -33,7 +33,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/echoVic/-FlowMind.git
+git clone https://github.com/echoVic/ai.FlowMind.git
 cd FlowMind
 
 # 安装依赖
@@ -211,8 +211,8 @@ pnpm build
 <div align="center">
   <p>用 ❤️ 和 🤖 制作</p>
   <p>
-    <a href="https://github.com/echoVic/-FlowMind">GitHub</a> •
-    <a href="https://github.com/echoVic/-FlowMind/issues">报告问题</a> •
-    <a href="https://github.com/echoVic/-FlowMind/discussions">功能建议</a>
+    <a href="https://github.com/echoVic/-FlowMind.ai">GitHub</a> •
+    <a href="https://github.com/echoVic/-FlowMind.ai/issues">报告问题</a> •
+    <a href="https://github.com/echoVic/-FlowMind.ai/discussions">功能建议</a>
   </p>
 </div>
