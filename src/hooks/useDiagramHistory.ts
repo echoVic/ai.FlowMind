@@ -1,10 +1,10 @@
 /**
  * 架构图历史记录Hook
- * 处理保存、加载、删除历史记录
+ * 处理保存、加载、删除历史记录（基于本地存储）
  */
 import { useAtom } from 'jotai';
+import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import useSWR, { mutate } from 'swr';
 import {
   currentDiagramAtom,
   diagramHistoryAtom,
@@ -12,28 +12,45 @@ import {
 } from '../stores/diagramStore';
 import type { DiagramData } from '../shared/types';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const STORAGE_KEY = 'diagram-history';
 
 export const useDiagramHistory = () => {
   const [currentDiagram, setCurrentDiagram] = useAtom(currentDiagramAtom);
-  const [, setDiagramHistory] = useAtom(diagramHistoryAtom);
+  const [diagramHistory, setDiagramHistory] = useAtom(diagramHistoryAtom);
   const [isSaving, setIsSaving] = useAtom(isSavingAtom);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 获取历史记录
-  const { data, error, isLoading } = useSWR(
-    `${process.env.AIPA_API_DOMAIN}/api/diagrams/history`,
-    fetcher,
-    {
-      onSuccess: (data) => {
-        setDiagramHistory(data.diagrams || []);
+  // 从本地存储加载历史记录
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsedHistory = JSON.parse(stored);
+        setDiagramHistory(parsedHistory);
       }
+    } catch (error) {
+      console.error('加载历史记录失败:', error);
+    } finally {
+      setIsLoading(false);
     }
-  );
+  }, [setDiagramHistory]);
+
+  // 保存历史记录到本地存储
+  const saveHistoryToStorage = (history: DiagramData[]) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    } catch (error) {
+      console.error('保存历史记录失败:', error);
+    }
+  };
 
   const saveDiagram = async (saveData?: Partial<DiagramData>) => {
     const dataToSave = {
       ...currentDiagram,
-      ...saveData
+      ...saveData,
+      id: saveData?.id || Date.now().toString(),
+      createdAt: saveData?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     if (!dataToSave.title || !dataToSave.mermaidCode) {
@@ -44,28 +61,27 @@ export const useDiagramHistory = () => {
     setIsSaving(true);
 
     try {
-      const response = await fetch(`${process.env.AIPA_API_DOMAIN}/api/diagrams/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSave)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '保存失败');
+      const existingIndex = diagramHistory.findIndex(d => d.id === dataToSave.id);
+      let newHistory: DiagramData[];
+      
+      if (existingIndex >= 0) {
+        // 更新existing记录
+        newHistory = [...diagramHistory];
+        newHistory[existingIndex] = dataToSave;
+      } else {
+        // 添加新记录
+        newHistory = [dataToSave, ...diagramHistory];
       }
 
-      const result = await response.json();
-      
-      // 刷新历史记录
-      mutate(`${process.env.AIPA_API_DOMAIN}/api/diagrams/history`);
+      setDiagramHistory(newHistory);
+      saveHistoryToStorage(newHistory);
       
       toast.success('架构图保存成功！');
       return true;
 
     } catch (error) {
       console.error('保存架构图失败:', error);
-      toast.error(error.message || '保存失败，请重试');
+      toast.error('保存失败，请重试');
       return false;
     } finally {
       setIsSaving(false);
@@ -79,32 +95,24 @@ export const useDiagramHistory = () => {
 
   const deleteDiagram = async (id: string) => {
     try {
-      const response = await fetch(`${process.env.AIPA_API_DOMAIN}/api/diagrams/${id}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '删除失败');
-      }
-
-      // 刷新历史记录
-      mutate(`${process.env.AIPA_API_DOMAIN}/api/diagrams/history`);
+      const newHistory = diagramHistory.filter(d => d.id !== id);
+      setDiagramHistory(newHistory);
+      saveHistoryToStorage(newHistory);
       
       toast.success('架构图删除成功！');
       return true;
 
     } catch (error) {
       console.error('删除架构图失败:', error);
-      toast.error(error.message || '删除失败，请重试');
+      toast.error('删除失败，请重试');
       return false;
     }
   };
 
   return {
-    history: data?.diagrams || [],
+    history: diagramHistory,
     isLoading,
-    error,
+    error: null,
     isSaving,
     saveDiagram,
     loadDiagram,

@@ -2,13 +2,13 @@
  * 架构图预览组件
  * 实时渲染Mermaid图表，支持缩放和导出
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useAtom } from 'jotai';
 import { motion } from 'framer-motion';
-import { Eye, ZoomIn, ZoomOut, RotateCcw, Download, Maximize, AlertCircle } from 'lucide-react';
+import { useAtom } from 'jotai';
+import { Download, Maximize, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import mermaid from 'mermaid';
-import { currentDiagramAtom, previewConfigAtom } from '../../../stores/diagramStore';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { currentDiagramAtom, previewConfigAtom } from '../../../stores/diagramStore';
 
 const DiagramPreview: React.FC = () => {
   const [currentDiagram] = useAtom(currentDiagramAtom);
@@ -23,15 +23,37 @@ const DiagramPreview: React.FC = () => {
   // 初始化Mermaid - 只执行一次
   useEffect(() => {
     let mounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
     
     const initMermaid = async () => {
       if (initializationRef.current) return;
+      
+      // 检查 mermaid 是否已加载
+      if (typeof mermaid === 'undefined') {
+        console.warn('Mermaid库未加载，等待重试...');
+        if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(() => initMermaid(), 1000);
+          return;
+        } else {
+          console.error('Mermaid库加载失败，已达到最大重试次数');
+          if (mounted) {
+            setError('图表渲染库加载失败，请刷新页面重试');
+          }
+          return;
+        }
+      }
+      
       initializationRef.current = true;
       
       try {
-        await mermaid.initialize({
+        console.log('开始初始化Mermaid...');
+        
+        // 重置 mermaid 状态
+        mermaid.initialize({
           startOnLoad: false,
-          theme: previewConfig.theme,
+          theme: 'default',
           securityLevel: 'loose',
           fontFamily: 'system-ui, -apple-system, sans-serif',
           flowchart: {
@@ -49,10 +71,13 @@ const DiagramPreview: React.FC = () => {
           class: {
             titleTopMargin: 25
           },
-          gitGraph: {
-            mode: 'simple'
-          }
+          // 添加错误处理配置
+          logLevel: 'error',
+          deterministicIds: false
         });
+        
+        // 测试 mermaid 是否可以正常工作
+        await mermaid.parse('graph TD\n  A --> B');
         
         if (mounted) {
           setIsInitialized(true);
@@ -61,17 +86,24 @@ const DiagramPreview: React.FC = () => {
       } catch (err) {
         console.error('Mermaid初始化失败:', err);
         if (mounted) {
-          setError('图表渲染库初始化失败');
+          setError(`图表渲染库初始化失败: ${err.message}`);
+          setIsInitialized(false);
         }
+        // 重置初始化标志，允许重试
+        initializationRef.current = false;
       }
     };
 
-    initMermaid();
+    // 延迟初始化，确保 mermaid 库已经加载
+    const timer = setTimeout(() => {
+      initMermaid();
+    }, 100);
     
     return () => {
       mounted = false;
+      clearTimeout(timer);
     };
-  }, []);
+  }, []); // 空依赖数组，确保只运行一次
 
   // 渲染图表的核心函数
   const renderDiagram = useCallback(async () => {
@@ -156,7 +188,7 @@ const DiagramPreview: React.FC = () => {
         });
       }
 
-      console.log('图表渲染成功');
+      console.log('图表渲染成功，SVG元素已添加到容器');
     } catch (err) {
       console.error('图表渲染失败:', err);
       
@@ -212,26 +244,35 @@ const DiagramPreview: React.FC = () => {
         setIsLoading(false);
       }
     }
-  }, [currentDiagram.mermaidCode, previewConfig.scale, isInitialized]);
+  }, [currentDiagram.mermaidCode, previewConfig.scale, isInitialized]); // 添加所有依赖
 
-  // 监听初始化完成，立即进行首次渲染
+  // 监听初始化完成和代码变化，进行渲染
   useEffect(() => {
     if (isInitialized && currentDiagram.mermaidCode.trim()) {
-      // 使用 setTimeout 确保 DOM 已经准备好
+      console.log('触发图表渲染，代码内容：', currentDiagram.mermaidCode.substring(0, 50) + '...');
+      
+      // 清除之前的错误状态
+      setError(null);
+      
+      // 使用较短的延时，避免用户等待过久
       const timer = setTimeout(() => {
         renderDiagram();
-      }, 100);
+      }, 10);
       
       return () => clearTimeout(timer);
+    } else {
+      console.log('渲染条件不满足：', { 
+        isInitialized, 
+        hasCode: !!currentDiagram.mermaidCode.trim(),
+        codeLength: currentDiagram.mermaidCode.length 
+      });
+      
+      // 如果有代码但还没初始化，显示等待状态
+      if (!isInitialized && currentDiagram.mermaidCode.trim()) {
+        console.log('等待Mermaid初始化完成...');
+      }
     }
-  }, [isInitialized]);
-
-  // 监听代码变化和缩放变化
-  useEffect(() => {
-    if (isInitialized) {
-      renderDiagram();
-    }
-  }, [renderDiagram]);
+  }, [isInitialized, currentDiagram.mermaidCode, previewConfig.scale]);
 
   const handleZoomIn = () => {
     setPreviewConfig(prev => ({
@@ -305,7 +346,21 @@ const DiagramPreview: React.FC = () => {
             <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">渲染中...</span>
           )}
           {error && (
-            <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">渲染失败</span>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">渲染失败</span>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  console.log('手动重试渲染');
+                  setError(null);
+                  renderDiagram();
+                }}
+                className="text-xs text-blue-600 hover:text-blue-700 underline"
+              >
+                重试
+              </motion.button>
+            </div>
           )}
         </div>
         
@@ -353,7 +408,7 @@ const DiagramPreview: React.FC = () => {
             onClick={handleExportImage}
             className="p-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white"
             title="导出SVG"
-            disabled={!isInitialized || isLoading || error}
+            disabled={!isInitialized || isLoading || !!error}
           >
             <Download size={16} />
           </motion.button>

@@ -2,44 +2,42 @@
   "name": "AI架构图生成器",
   "version": "1.0.0",
   "dependencies": {
-    "mermaid": "^10.6.1",
-    "monaco-editor": "^0.44.0",
-    "jotai": "^2.6.4",
-    "react-hot-toast": "^2.4.1",
-    "lucide-react": "0.294.0",
-    "framer-motion": "^11.12.0",
-    "swr": "^2.2.4",
-    "react": "^18.2.0",
-    "zod": "^3.22.0",
+    "@langchain/anthropic": "^0.3.0",
     "@langchain/core": "^0.3.0",
     "@langchain/openai": "^0.3.0",
-    "@langchain/anthropic": "^0.3.0",
-    "openai": "^4.67.3",
-    "recharts": "^2.12.7",
-    "react-dom": "^18.2.0",
     "@nextui-org/react": "^2.6.11",
     "@nextui-org/system": "^2.4.6",
     "@nextui-org/theme": "^2.4.5",
-    "next": "^14.2.0"
+    "framer-motion": "11.11.1",
+    "jotai": "^2.6.4",
+    "lucide-react": "0.294.0",
+    "mermaid": "^10.6.1",
+    "monaco-editor": "^0.44.0",
+    "next": "^14.2.0",
+    "openai": "^4.67.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
+    "recharts": "^2.12.7",
+    "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "@types/react": "^18.2.75",
     "@types/react-dom": "^18.2.24",
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
     "autoprefixer": "^10.4.20",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.2.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
-    "eslint": "^8.0.0",
-    "eslint-config-next": "^14.2.0"
+    "typescript": "^5.0.0"
   },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "preview": "next start",
-    "install": "pnpm install"
+    "preview": "next start"
   },
   "packageManager": "pnpm@10.12.4"
 }

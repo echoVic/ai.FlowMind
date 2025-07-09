@@ -6,7 +6,8 @@
       "Bash(git add:*)",
       "Bash(pnpm dev:*)",
       "Bash(pkill:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(pnpm remove:*)"
     ],
     "deny": []
   }
