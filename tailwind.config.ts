@@ -6,10 +6,9 @@
 
     export default {
       content: [
-        './src/**/*.{js,jsx,ts,tsx}', // single component styles
-        
-          './node_modules/@nextui-org/theme/dist/components/**/*.js',
-          
+        './app/**/*.{js,ts,jsx,tsx,mdx}',
+        './src/**/*.{js,jsx,ts,tsx}',
+        './node_modules/@nextui-org/theme/dist/components/**/*.js',
       ],
       darkMode: 'class',
       plugins: [

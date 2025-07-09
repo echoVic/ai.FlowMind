@@ -2,11 +2,10 @@
  * 基于 LangChain 的图表生成 Agent
  * 利用 LangChain 的能力实现可复用的 AI 图表生成
  */
-import { BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { ChatOpenAI } from "@langchain/openai";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { AIMessage } from "@langchain/core/messages";
+import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
 
 // 图表生成请求接口
@@ -48,6 +47,8 @@ export class VolcengineLangChainProvider extends BaseChatModel {
   private apiKey: string;
   private endpoint: string;
   private modelName: string;
+  private temperature: number;
+  private maxTokens: number;
 
   constructor(config: {
     apiKey: string;
@@ -56,14 +57,13 @@ export class VolcengineLangChainProvider extends BaseChatModel {
     temperature?: number;
     maxTokens?: number;
   }) {
-    super({ 
-      temperature: config.temperature || 0.7,
-      maxTokens: config.maxTokens || 2048
-    });
+    super({});
     
     this.apiKey = config.apiKey;
     this.endpoint = config.endpoint || 'https://ark.cn-beijing.volces.com/api/v3';
     this.modelName = config.modelName || 'ep-20250617131345-rshkp';
+    this.temperature = config.temperature || 0.7;
+    this.maxTokens = config.maxTokens || 2048;
   }
 
   async _generate(

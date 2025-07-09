@@ -15,15 +15,16 @@ This is a React-based AI-powered diagram generation application that allows user
 ### Development (使用 pnpm)
 - `pnpm dev` - Start development server with hot reload
 - `pnpm build` - Build for production  
-- `pnpm preview` - Preview production build
+- `pnpm start` - Start production server
+- `pnpm lint` - Run ESLint checks
+- `pnpm preview` - Same as start (alias)
 - `pnpm install` - Install dependencies
 
-### Build System
-- Uses Rsbuild as the build tool (configured in `rsbuild.config.ts`)
-- Entry point: `src/entry.tsx`
-- Supports TypeScript, React, and Tailwind CSS
-- Package manager: pnpm (see `.npmrc` for configuration)
-- 纯前端构建，无服务端依赖
+### Next.js 配置要点
+- `next.config.js` 包含 NextUI 和 Monaco Editor 的特殊配置
+- 支持 TypeScript 构建时错误忽略（迁移期间）
+- Webpack 配置处理 Monaco Editor 静态资源和 Web Workers
+- 输出模式设置为 'standalone' 支持独立部署
 
 ## Architecture
 
@@ -133,31 +134,17 @@ Primary atoms in `src/stores/diagramStore.ts`:
 - 自定义 Volcengine 提供商适配器
 - 统一的 Agent 接口和管理
 
-### Agent 使用模式
-```typescript
-// 通过 AgentManager 创建和使用 Agent
-import { agentManager } from './services/AgentManager';
+### AI Agent 调用流程
+1. **Agent 注册**: 通过 `AgentManager.registerAgent()` 注册新的 AI 提供商
+2. **模型创建**: 根据提供商类型创建对应的 LangChain 模型（ChatOpenAI、ChatAnthropic、VolcengineLangChainProvider）
+3. **Agent 实例化**: 使用 DiagramAgentFactory 创建 DiagramAgent 实例
+4. **图表生成**: 调用 `generateDiagram()` 或 `optimizeDiagram()` 方法
+5. **结果处理**: 返回包含 mermaidCode、explanation 和 metadata 的结构化结果
 
-// 注册 Agent
-agentManager.registerAgent('my-volcengine', {
-  apiKey: 'your-api-key',
-  provider: 'volcengine',
-  modelName: 'ep-20250617131345-rshkp'
-});
-
-// 生成图表
-const result = await agentManager.generateDiagram({
-  description: '创建用户登录流程图',
-  diagramType: 'flowchart'
-}, 'my-volcengine');
-
-// 优化图表
-const optimized = await agentManager.optimizeDiagram(
-  existingCode,
-  '添加错误处理流程',
-  'my-volcengine'
-);
-```
+### 关键设计模式
+- **工厂模式**: DiagramAgentFactory 根据配置创建不同的 Agent
+- **适配器模式**: VolcengineLangChainProvider 适配火山引擎 API 到 LangChain 接口
+- **单例模式**: AgentManager 实例管理所有已注册的 Agent
 
 ### 错误处理
 - LangChain 内置重试机制
@@ -178,10 +165,27 @@ const optimized = await agentManager.optimizeDiagram(
 - 锁文件: `pnpm-lock.yaml`
 - 已移除所有服务端相关依赖
 
-## 部署说明
-由于采用纯前端架构，应用可以部署到任何静态网站托管服务：
-- Vercel, Netlify, GitHub Pages
-- CDN + 对象存储
-- 任何支持静态文件的 Web 服务器
+## 部署说明 ✅ Next.js 迁移完成
+基于 Next.js 14 App Router 的纯前端架构，应用可以部署到：
 
-无需配置服务端环境变量或数据库，用户在前端配置 API 密钥即可使用。
+### 推荐部署平台
+- **Vercel** (最佳选择，Next.js 原生支持)
+- **Netlify** (支持 Next.js SSG)
+- **GitHub Pages** (需要静态导出)
+- **CDN + 对象存储** (阿里云OSS、腾讯云COS等)
+
+### 部署配置
+- 构建命令: `pnpm build`
+- 输出目录: `.next` (Vercel/Netlify) 或 `out` (静态导出)
+- Node.js 版本: >=18.0.0
+- 无服务端依赖，支持完全静态化
+
+### 静态导出 (可选)
+如需完全静态化，在 `next.config.js` 中添加：
+```javascript
+output: 'export',
+trailingSlash: true,
+images: { unoptimized: true }
+```
+
+用户无需配置服务端环境，直接在前端界面配置 API 密钥即可使用所有功能。

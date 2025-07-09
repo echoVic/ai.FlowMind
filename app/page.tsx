@@ -1,8 +1,10 @@
+'use client';
+
+import DiagramGenerator from '@/components/DiagramGenerator';
 import React from 'react';
 import { Toaster } from 'react-hot-toast';
-import DiagramGenerator from './components/DiagramGenerator';
 
-const App: React.FC = () => {
+export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <DiagramGenerator />
@@ -30,6 +32,4 @@ const App: React.FC = () => {
       />
     </div>
   );
-};
-
-export default App;
+} 
