@@ -48,7 +48,7 @@ export interface OptimizeRequest {
 export interface AIModelConfig {
   name: string;
   displayName: string;
-  provider: 'openai' | 'claude' | 'volcengine' | string;
+  provider: 'openai' | 'claude' | 'volcengine' | 'qwen' | string;
   apiKey?: string;
   endpoint?: string;
   openaiCompatibleEndpoint?: string;
@@ -58,7 +58,7 @@ export interface AIModelConfig {
   maxTokens?: number;
   temperature?: number;
   supportDirectCall?: boolean;
-  implementationType?: 'native-fetch' | 'openai-native' | 'openai-compatible' | 'anthropic-native' | 'custom';
+  implementationType?: 'native-fetch' | 'openai-native' | 'openai-compatible' | 'anthropic-native' | 'qwen-native' | 'custom';
   useOpenAIFormat?: boolean;
   isUsingDefaultKey?: boolean;
   icon?: string;

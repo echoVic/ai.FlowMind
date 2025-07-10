@@ -44,6 +44,81 @@ export interface DiagramAgentConfig {
   enableMemory?: boolean;
 }
 
+// Qwen Provider 适配器
+export class QwenLangChainProvider extends BaseChatModel {
+  private apiKey: string;
+  private endpoint: string;
+  private modelName: string;
+  private temperature: number;
+  private maxTokens: number;
+
+  constructor(config: {
+    apiKey: string;
+    endpoint?: string;
+    modelName?: string;
+    temperature?: number;
+    maxTokens?: number;
+  }) {
+    super({});
+    
+    this.apiKey = config.apiKey;
+    this.endpoint = config.endpoint || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    this.modelName = config.modelName || 'qwen-max';
+    this.temperature = config.temperature || 0.7;
+    this.maxTokens = config.maxTokens || 2048;
+  }
+
+  async _generate(
+    messages: BaseMessage[],
+    options: BaseChatModelCallOptions,
+    runManager?: CallbackManagerForLLMRun
+  ): Promise<ChatResult> {
+    try {
+      const openaiMessages = messages.map(msg => ({
+        role: msg._getType() === 'system' ? 'system' : 
+              msg._getType() === 'human' ? 'user' : 'assistant',
+        content: msg.content as string
+      }));
+
+      const response = await fetch(`${this.endpoint}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.modelName,
+          messages: openaiMessages,
+          temperature: (options as any).temperature || this.temperature,
+          max_tokens: (options as any).maxTokens || this.maxTokens,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Qwen API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const content = result.choices[0].message.content;
+
+      return {
+        generations: [
+          {
+            text: content,
+            message: new AIMessage(content)
+          }
+        ]
+      };
+    } catch (error) {
+      throw new Error(`Qwen provider error: ${error.message}`);
+    }
+  }
+
+  _llmType(): string {
+    return 'qwen';
+  }
+}
+
 // Volcengine Provider 适配器
 export class VolcengineLangChainProvider extends BaseChatModel {
   private apiKey: string;
@@ -481,6 +556,7 @@ ${request.existingCode}
     if (modelType === 'volcengine') return 'volcengine';
     if (modelType === 'openai') return 'openai';
     if (modelType === 'anthropic') return 'anthropic';
+    if (modelType === 'qwen') return 'qwen';
     return 'unknown';
   }
 
@@ -594,6 +670,34 @@ export class DiagramAgentFactory {
       modelName: config.modelName || 'claude-3-sonnet-20240229',
       temperature: config.temperature || 0.7,
       maxTokens: config.maxTokens || 2048
+    });
+
+    return new DiagramAgent({
+      model,
+      temperature: config.temperature,
+      maxTokens: config.maxTokens,
+      enableMemory: config.enableMemory || false,
+      retryCount: 3
+    });
+  }
+
+  /**
+   * 创建 Qwen Agent
+   */
+  static createQwenAgent(config: {
+    apiKey: string;
+    endpoint?: string;
+    modelName?: string;
+    temperature?: number;
+    maxTokens?: number;
+    enableMemory?: boolean;
+  }): DiagramAgent {
+    const model = new QwenLangChainProvider({
+      apiKey: config.apiKey,
+      endpoint: config.endpoint,
+      modelName: config.modelName,
+      temperature: config.temperature,
+      maxTokens: config.maxTokens
     });
 
     return new DiagramAgent({

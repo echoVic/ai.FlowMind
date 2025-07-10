@@ -7,11 +7,12 @@ import type { AIModelConfig } from '../shared/types';
 
 export interface AgentConfig {
   apiKey: string;
-  provider: 'volcengine' | 'openai' | 'anthropic';
+  provider: 'volcengine' | 'openai' | 'anthropic' | 'qwen';
   modelName?: string;
   temperature?: number;
   maxTokens?: number;
   enableMemory?: boolean;
+  endpoint?: string;
 }
 
 export class AgentManager {
@@ -86,6 +87,17 @@ export class AgentManager {
         });
         break;
 
+      case 'qwen':
+        agent = DiagramAgentFactory.createQwenAgent({
+          apiKey: config.apiKey,
+          endpoint: config.endpoint,
+          modelName: config.modelName,
+          temperature: config.temperature,
+          maxTokens: config.maxTokens,
+          enableMemory: config.enableMemory
+        });
+        break;
+
       default:
         throw new Error(`Unsupported provider: ${config.provider}`);
     }
@@ -151,6 +163,10 @@ export class AgentManager {
     const anthropicApiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
     const anthropicModelName = process.env.NEXT_PUBLIC_ANTHROPIC_MODEL_NAME || 'claude-3-sonnet-20240229';
     
+    const qwenApiKey = process.env.NEXT_PUBLIC_QWEN_API_KEY;
+    const qwenModelName = process.env.NEXT_PUBLIC_QWEN_MODEL_NAME || 'qwen-max';
+    const qwenEndpoint = process.env.NEXT_PUBLIC_QWEN_ENDPOINT || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    
     const defaultTemperature = parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7');
     const defaultMaxTokens = parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || '2048');
 
@@ -158,8 +174,9 @@ export class AgentManager {
     console.log('- NEXT_PUBLIC_ARK_API_KEY:', arkApiKey ? '已配置' : '未配置');
     console.log('- NEXT_PUBLIC_OPENAI_API_KEY:', openaiApiKey ? '已配置' : '未配置');
     console.log('- NEXT_PUBLIC_ANTHROPIC_API_KEY:', anthropicApiKey ? '已配置' : '未配置');
+    console.log('- NEXT_PUBLIC_QWEN_API_KEY:', qwenApiKey ? '已配置' : '未配置');
 
-    // 优先级：火山引擎 > OpenAI > Claude
+    // 优先级：火山引擎 > Qwen > OpenAI > Claude
     if (arkApiKey) {
       console.log('使用火山引擎作为默认 Agent');
       this.registerAgent('volcengine-default', {
@@ -171,6 +188,18 @@ export class AgentManager {
         enableMemory: false
       });
       this.setDefaultAgent('volcengine-default');
+    } else if (qwenApiKey) {
+      console.log('使用 Qwen 作为默认 Agent');
+      this.registerAgent('qwen-default', {
+        apiKey: qwenApiKey,
+        provider: 'qwen',
+        modelName: qwenModelName,
+        endpoint: qwenEndpoint,
+        temperature: defaultTemperature,
+        maxTokens: defaultMaxTokens,
+        enableMemory: false
+      });
+      this.setDefaultAgent('qwen-default');
     } else if (openaiApiKey) {
       console.log('使用 OpenAI 作为默认 Agent');
       this.registerAgent('openai-default', {
@@ -195,7 +224,7 @@ export class AgentManager {
       this.setDefaultAgent('anthropic-default');
     } else {
       console.warn('AgentManager: 未找到任何 API 密钥配置');
-      console.warn('请在 .env.local 文件中配置 NEXT_PUBLIC_ARK_API_KEY、NEXT_PUBLIC_OPENAI_API_KEY 或 NEXT_PUBLIC_ANTHROPIC_API_KEY');
+      console.warn('请在 .env.local 文件中配置 NEXT_PUBLIC_ARK_API_KEY、NEXT_PUBLIC_OPENAI_API_KEY、NEXT_PUBLIC_ANTHROPIC_API_KEY 或 NEXT_PUBLIC_QWEN_API_KEY');
       console.warn('或者通过前端界面手动配置 Agent');
     }
   }
@@ -206,11 +235,12 @@ export class AgentManager {
   createAgentFromConfig(config: AIModelConfig): DiagramAgent {
     const agentConfig: AgentConfig = {
       apiKey: config.apiKey || '',
-      provider: config.provider as 'volcengine' | 'openai' | 'anthropic',
+      provider: config.provider as 'volcengine' | 'openai' | 'anthropic' | 'qwen',
       modelName: config.model,
       temperature: config.temperature,
       maxTokens: config.maxTokens,
-      enableMemory: false
+      enableMemory: false,
+      endpoint: config.endpoint
     };
 
     switch (config.provider) {
@@ -220,6 +250,8 @@ export class AgentManager {
         return DiagramAgentFactory.createOpenAIAgent(agentConfig);
       case 'anthropic':
         return DiagramAgentFactory.createClaudeAgent(agentConfig);
+      case 'qwen':
+        return DiagramAgentFactory.createQwenAgent(agentConfig);
       default:
         throw new Error(`Unsupported provider: ${config.provider}`);
     }

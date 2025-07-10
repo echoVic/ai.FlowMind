@@ -50,6 +50,7 @@ const AddCustomModelModal: React.FC = () => {
     { value: 'openai', label: 'OpenAI', icon: '🤖', placeholder: 'gpt-4, gpt-3.5-turbo' },
     { value: 'claude', label: 'Claude (Anthropic)', icon: '🧠', placeholder: 'claude-3-sonnet-20240229' },
     { value: 'volcengine', label: '火山引擎', icon: '🌋', placeholder: 'ep-20250617131345-rshkp' },
+    { value: 'qwen', label: 'Qwen (通义千问)', icon: '🌟', placeholder: 'qwen-max, qwen-turbo, qwen-plus' },
     { value: 'azure', label: 'Azure OpenAI', icon: '☁️', placeholder: 'gpt-4' },
     { value: 'gemini', label: 'Google Gemini', icon: '💎', placeholder: 'gemini-pro' },
     { value: 'custom', label: '其他自定义', icon: '⚙️', placeholder: '自定义模型名称' }
@@ -104,7 +105,8 @@ const AddCustomModelModal: React.FC = () => {
         enabled: true,
         supportDirectCall: true,
         implementationType: form.provider === 'openai' ? 'openai-native' : 
-                           form.provider === 'claude' ? 'anthropic-native' : 'openai-compatible',
+                           form.provider === 'claude' ? 'anthropic-native' : 
+                           form.provider === 'qwen' ? 'qwen-native' : 'openai-compatible',
         useOpenAIFormat: form.provider !== 'claude',
         isUsingDefaultKey: false,
         icon: providerOptions.find(p => p.value === form.provider)?.icon || '⚙️'

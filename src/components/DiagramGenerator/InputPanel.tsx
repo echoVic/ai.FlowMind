@@ -74,6 +74,8 @@ const InputPanel: React.FC = () => {
         return '☁️';
       case 'gemini':
         return '💎';
+      case 'qwen':
+        return '🌟';
       default:
         return '⚙️';
     }
