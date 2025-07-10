@@ -4,19 +4,19 @@
  */
 import { motion } from 'framer-motion';
 import { useAtom } from 'jotai';
-import { Lightbulb, Settings, Sparkles, Plus } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import { Lightbulb, Plus, Settings, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { useDiagramGenerator } from '../../hooks/useDiagramGenerator';
-import { 
-  currentDiagramAtom, 
-  naturalLanguageInputAtom, 
-  selectedModelAtom,
+import {
   availableModelsAtom,
-  showAddCustomModelAtom,
-  loadCustomModelsAtom
+  currentDiagramAtom,
+  loadCustomModelsAtom,
+  naturalLanguageInputAtom,
+  selectedModelAtom,
+  showAddCustomModelAtom
 } from '../../stores/diagramStore';
-import DiagnosticPanel from './DiagnosticPanel';
 import AddCustomModelModal from './AddCustomModelModal';
+import DiagnosticPanel from './DiagnosticPanel';
 
 const InputPanel: React.FC = () => {
   const [naturalInput, setNaturalInput] = useAtom(naturalLanguageInputAtom);
@@ -52,11 +52,11 @@ const InputPanel: React.FC = () => {
 
   // 默认模型选项（火山引擎模型）
   const defaultModelOptions = [
-    { value: 'ep-20250617131345-rshkp', label: '🌋 Doubao-Seed-1.6 | 250615', icon: '🌋' },
-    { value: 'ep-20250612135125-br9k7', label: '🌋 Doubao-Seed-1.6-thinking | 250615', icon: '🌋' },
-    { value: 'ep-20250530171307-rrcc5', label: '🌋 DeepSeek-R1 | 250528', icon: '🔥' },
-    { value: 'ep-20250530171222-q42h8', label: '🌋 DeepSeek-V3', icon: '🔥' },
-    { value: 'ep-20250417144747-rgffm', label: '🌋 Doubao-1.5-thinking-pro', icon: '🌋' },
+    { value: 'ep-20250617131345-rshkp', label: '🌋 Doubao-Seed-1.6 | 250615' },
+    { value: 'ep-20250612135125-br9k7', label: '🌋 Doubao-Seed-1.6-thinking | 250615' },
+    { value: 'ep-20250530171307-rrcc5', label: '🌋 DeepSeek-R1 | 250528' },
+    { value: 'ep-20250530171222-q42h8', label: '🌋 DeepSeek-V3'},
+    { value: 'ep-20250417144747-rgffm', label: '🌋 Doubao-1.5-thinking-pro' },
   ];
 
   // 获取图标
@@ -144,7 +144,7 @@ const InputPanel: React.FC = () => {
           >
             {modelOptions.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.icon} {option.label}{option.isCustom ? ' (自定义)' : ''}
+                {option.label}{option.isCustom ? ' (自定义)' : ''}
               </option>
             ))}
           </select>
