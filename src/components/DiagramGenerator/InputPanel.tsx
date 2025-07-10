@@ -50,13 +50,9 @@ const InputPanel: React.FC = () => {
     generateDiagram(example);
   };
 
-  // 默认模型选项（如果没有加载到动态模型）
+  // 默认模型选项（只保留实际可用的）
   const defaultModelOptions = [
-    { value: 'doubao-seed-1.6', label: '豆包 Seed 1.6 (默认)', icon: '🌋' },
-    { value: 'gpt-4o', label: 'GPT-4o', icon: '🤖' },
-    { value: 'claude-4-sonnet', label: 'Claude 4 Sonnet', icon: '🧠' },
-    { value: 'claude-7-sonnet', label: 'Claude 7 Sonnet', icon: '🧠' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini', icon: '🤖' },
+    { value: 'ep-20250617131345-rshkp', label: '豆包 Seed (默认)', icon: '🌋' },
   ];
 
   // 获取图标
