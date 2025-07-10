@@ -1,23 +1,27 @@
 /**
  * 架构图历史记录Hook
- * 处理保存、加载、删除历史记录（基于本地存储）
+ * 使用 Zustand 状态管理，处理保存、加载、删除历史记录（基于本地存储）
  */
-import { useAtom } from 'jotai';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import {
-  currentDiagramAtom,
-  diagramHistoryAtom,
-  isSavingAtom
-} from '../stores/diagramStore';
+  useCurrentDiagram,
+  useDiagramHistory as useDiagramHistoryState,
+  useIsSaving
+} from '../stores/hooks';
+import { useAppStore } from '../stores/appStore';
 import type { DiagramData } from '../shared/types';
 
 const STORAGE_KEY = 'diagram-history';
 
 export const useDiagramHistory = () => {
-  const [currentDiagram, setCurrentDiagram] = useAtom(currentDiagramAtom);
-  const [diagramHistory, setDiagramHistory] = useAtom(diagramHistoryAtom);
-  const [isSaving, setIsSaving] = useAtom(isSavingAtom);
+  const currentDiagram = useCurrentDiagram();
+  const diagramHistory = useDiagramHistoryState();
+  const isSaving = useIsSaving();
+  
+  const setCurrentDiagram = useAppStore(state => state.setCurrentDiagram);
+  const setDiagramHistory = useAppStore(state => state.setDiagramHistory);
+  const setIsSaving = useAppStore(state => state.setIsSaving);
   const [isLoading, setIsLoading] = useState(true);
 
   // 从本地存储加载历史记录

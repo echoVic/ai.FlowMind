@@ -1,17 +1,16 @@
 /**
  * AI助手组件
- * 提供智能建议和优化功能
+ * 使用 Zustand 状态管理，提供智能建议和优化功能
  */
 import React, { useState } from 'react';
-import { useAtom } from 'jotai';
 import { motion } from 'framer-motion';
-import { Bot, Send, Zap } from 'lucide-react';
-import { aiResponseAtom, isOptimizingAtom } from '../../../stores/diagramStore';
+import { Bot, Send } from 'lucide-react';
+import { useAiResponse, useIsOptimizing } from '../../../stores/hooks';
 import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
 
 const AIAssistant: React.FC = () => {
-  const [aiResponse] = useAtom(aiResponseAtom);
-  const [isOptimizing] = useAtom(isOptimizingAtom);
+  const aiResponse = useAiResponse();
+  const isOptimizing = useIsOptimizing();
   const [inputValue, setInputValue] = useState('');
   const { optimizeDiagram } = useDiagramGenerator();
 
@@ -97,7 +96,7 @@ const AIAssistant: React.FC = () => {
             placeholder="告诉我如何优化..."
             className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-transparent"
             disabled={isOptimizing}
-            onKeyPress={(e) => e.key === 'Enter' && handleOptimize()}
+            onKeyDown={(e) => e.key === 'Enter' && handleOptimize()}
           />
           
           <motion.button

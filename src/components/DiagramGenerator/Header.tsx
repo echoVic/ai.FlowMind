@@ -1,20 +1,21 @@
 /**
  * 头部组件
- * 包含标题、工具栏按钮和状态指示器
+ * 使用 Zustand 状态管理，包含标题、工具栏按钮和状态指示器
  */
 import { motion } from 'framer-motion';
-import { useAtom } from 'jotai';
 import { Download, Menu, RotateCcw, Save, Share2 } from 'lucide-react';
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useDiagramGenerator } from '../../hooks/useDiagramGenerator';
 import { useDiagramHistory } from '../../hooks/useDiagramHistory';
-import { currentDiagramAtom, sidebarOpenAtom } from '../../stores/diagramStore';
+import { useCurrentDiagram, useSidebarOpen } from '../../stores/hooks';
+import { useUIActions } from '../../stores/hooks';
 import SaveModal from './Header/SaveModal';
 
 const Header: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useAtom(sidebarOpenAtom);
-  const [currentDiagram] = useAtom(currentDiagramAtom);
+  const sidebarOpen = useSidebarOpen();
+  const currentDiagram = useCurrentDiagram();
+  const { toggleSidebar } = useUIActions();
   const [showSaveModal, setShowSaveModal] = useState(false);
   
   const { isSaving } = useDiagramHistory();
@@ -63,7 +64,7 @@ const Header: React.FC = () => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setSidebarOpen(!sidebarOpen)}
+              onClick={() => toggleSidebar()}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600"
             >
               <Menu size={20} />

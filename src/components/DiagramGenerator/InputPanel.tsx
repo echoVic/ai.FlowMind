@@ -1,31 +1,33 @@
 /**
  * 输入面板组件
- * 简化模型选择，专注火山引擎调试
+ * 使用 Zustand 状态管理，保持原有功能
  */
 import { motion } from 'framer-motion';
-import { useAtom } from 'jotai';
 import { Lightbulb, Plus, Settings, Sparkles } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useDiagramGenerator } from '../../hooks/useDiagramGenerator';
-import {
-  availableModelsAtom,
-  currentDiagramAtom,
-  loadCustomModelsAtom,
-  naturalLanguageInputAtom,
-  selectedModelAtom,
-  showAddCustomModelAtom
-} from '../../stores/diagramStore';
+import { useInputPanel } from '../../stores/hooks';
 import AddCustomModelModal from './AddCustomModelModal';
 import DiagnosticPanel from './DiagnosticPanel';
 
 const InputPanel: React.FC = () => {
-  const [naturalInput, setNaturalInput] = useAtom(naturalLanguageInputAtom);
-  const [currentDiagram, setCurrentDiagram] = useAtom(currentDiagramAtom);
-  const [selectedModel, setSelectedModel] = useAtom(selectedModelAtom);
-  const [availableModels] = useAtom(availableModelsAtom);
-  const [, setShowAddModal] = useAtom(showAddCustomModelAtom);
-  const [, loadCustomModels] = useAtom(loadCustomModelsAtom);
-  const { isGenerating, generateDiagram } = useDiagramGenerator();
+  const {
+    // 状态
+    naturalLanguageInput,
+    currentDiagram,
+    selectedModel,
+    availableModels,
+    isGenerating,
+    showAddCustomModel,
+    // 操作
+    setCurrentDiagram,
+    setNaturalLanguageInput,
+    setSelectedModel,
+    setShowAddCustomModel,
+    loadCustomModels
+  } = useInputPanel();
+  
+  const { generateDiagram } = useDiagramGenerator();
   const [showDiagnostic, setShowDiagnostic] = useState(false);
 
   // 加载自定义模型
@@ -46,7 +48,7 @@ const InputPanel: React.FC = () => {
   ];
 
   const handleQuickExample = (example: string) => {
-    setNaturalInput(example);
+    setNaturalLanguageInput(example);
     generateDiagram(example);
   };
 
@@ -110,10 +112,13 @@ const InputPanel: React.FC = () => {
 
             <select
               value={currentDiagram.diagramType}
-              onChange={(e) => setCurrentDiagram(prev => ({
-                ...prev,
-                diagramType: e.target.value as any
-              }))}
+              onChange={(e) => {
+                const newDiagram = {
+                  ...currentDiagram,
+                  diagramType: e.target.value as any
+                };
+                setCurrentDiagram(newDiagram);
+              }}
               className="text-sm border-0 bg-gray-50 rounded-md px-3 py-1 focus:ring-1 focus:ring-blue-500"
             >
               <option value="flowchart">流程图</option>
@@ -129,7 +134,7 @@ const InputPanel: React.FC = () => {
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium text-gray-700">AI模型</label>
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => setShowAddCustomModel(true)}
               className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
             >
               <Plus size={12} />
@@ -167,8 +172,8 @@ const InputPanel: React.FC = () => {
       <div className="flex-1 p-6">
         <form onSubmit={handleSubmit} className="h-full flex flex-col">
           <textarea
-            value={naturalInput}
-            onChange={(e) => setNaturalInput(e.target.value)}
+            value={naturalLanguageInput}
+            onChange={(e) => setNaturalLanguageInput(e.target.value)}
             placeholder="用自然语言描述您的架构需求，AI将为您生成专业的架构图..."
             className="flex-1 w-full p-4 border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm leading-relaxed"
             disabled={isGenerating}
@@ -176,12 +181,12 @@ const InputPanel: React.FC = () => {
           
           <div className="mt-6 flex justify-between items-center">
             <span className="text-xs text-gray-400">
-              {naturalInput.length}/500
+              {naturalLanguageInput.length}/500
             </span>
             
             <motion.button
               type="submit"
-              disabled={isGenerating || !naturalInput.trim()}
+              disabled={isGenerating || !naturalLanguageInput.trim()}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="flex items-center space-x-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"

@@ -1,38 +1,41 @@
 /**
  * 架构图生成相关Hook
- * 基于 LangChain Agent 的新架构
+ * 使用 Zustand 状态管理，基于 LangChain Agent 的新架构
  */
-import { useAtom } from 'jotai';
 import { toast } from 'react-hot-toast';
 import type { DiagramGenerationRequest } from '../agents/DiagramAgent';
 import { agentManager } from '../services/AgentManager';
 import type { AIModelConfig, DirectCallConfig, DiagramData } from '../shared/types';
 import {
-  aiResponseAtom,
-  availableModelsAtom,
-  currentDiagramAtom,
-  directCallConfigAtom,
-  errorMessageAtom,
-  isGeneratingAtom,
-  isOptimizingAtom,
-  naturalLanguageInputAtom,
-  selectedModelAtom
-} from '../stores/diagramStore';
+  useCurrentDiagram,
+  useNaturalLanguageInput,
+  useIsGenerating,
+  useIsOptimizing,
+  useAiResponse,
+  useSelectedModel,
+  useAvailableModels,
+  useDirectCallConfig
+} from '../stores/hooks';
+import { useAppStore } from '../stores/appStore';
 
 export const useDiagramGenerator = () => {
-  const [currentDiagram, setCurrentDiagram] = useAtom(currentDiagramAtom);
-  const [naturalInput, setNaturalInput] = useAtom(naturalLanguageInputAtom);
-  const [isGenerating, setIsGenerating] = useAtom(isGeneratingAtom);
-  const [isOptimizing, setIsOptimizing] = useAtom(isOptimizingAtom);
-  const [aiResponse, setAiResponse] = useAtom(aiResponseAtom);
-  const [, setErrorMessage] = useAtom(errorMessageAtom);
-  const [selectedModel] = useAtom(selectedModelAtom);
-  const [availableModels] = useAtom(availableModelsAtom);
-  const [directCallConfig] = useAtom(directCallConfigAtom);
-
-  // 类型断言修复 TypeScript 错误
-  const safeSetErrorMessage = setErrorMessage as (value: string | null) => void;
-  const safeSetAiResponse = setAiResponse as (value: any) => void;
+  // 使用 Zustand hooks
+  const currentDiagram = useCurrentDiagram();
+  const naturalInput = useNaturalLanguageInput();
+  const isGenerating = useIsGenerating();
+  const isOptimizing = useIsOptimizing();
+  const aiResponse = useAiResponse();
+  const selectedModel = useSelectedModel();
+  const availableModels = useAvailableModels();
+  const directCallConfig = useDirectCallConfig();
+  
+  // 使用 Zustand actions
+  const setCurrentDiagram = useAppStore(state => state.setCurrentDiagram);
+  const setNaturalInput = useAppStore(state => state.setNaturalLanguageInput);
+  const setIsGenerating = useAppStore(state => state.setIsGenerating);
+  const setIsOptimizing = useAppStore(state => state.setIsOptimizing);
+  const setAiResponse = useAppStore(state => state.setAiResponse);
+  const setErrorMessage = useAppStore(state => state.setErrorMessage);
 
   /**
    * 注册或更新 Agent
@@ -66,7 +69,7 @@ export const useDiagramGenerator = () => {
     }
 
     setIsGenerating(true);
-    safeSetErrorMessage(null);
+    setErrorMessage(null);
 
     try {
       console.log('=== 基于 Agent 的图表生成开始 ===');
@@ -116,24 +119,24 @@ export const useDiagramGenerator = () => {
         mermaidCode: result.mermaidCode,
         explanation: result.explanation,
         suggestions: result.suggestions,
-        diagramType: result.diagramType,
+        diagramType: result.diagramType as DiagramData['diagramType'],
         metadata: result.metadata
       };
 
-      safeSetAiResponse(frontendResult);
-      setCurrentDiagram(prev => ({
-        ...prev,
+      setAiResponse(frontendResult);
+      setCurrentDiagram({
+        ...currentDiagram,
         description: input,
         mermaidCode: result.mermaidCode,
         diagramType: result.diagramType as DiagramData['diagramType']
-      }));
+      });
 
       const providerName = result.metadata.provider || 'AI';
       toast.success(`架构图生成成功！(使用 ${providerName})`);
 
     } catch (error) {
       console.error('Agent 图表生成失败:', error);
-      safeSetErrorMessage(error instanceof Error ? error.message : String(error));
+      setErrorMessage(error instanceof Error ? error.message : String(error));
       
       // 提供具体的错误建议
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -161,7 +164,7 @@ export const useDiagramGenerator = () => {
     }
 
     setIsOptimizing(true);
-    safeSetErrorMessage(null);
+    setErrorMessage(null);
 
     try {
       console.log('=== 基于 Agent 的图表优化开始 ===');
@@ -204,16 +207,16 @@ export const useDiagramGenerator = () => {
         mermaidCode: result.mermaidCode,
         explanation: result.explanation,
         suggestions: result.suggestions,
-        diagramType: result.diagramType,
+        diagramType: result.diagramType as DiagramData['diagramType'],
         metadata: result.metadata
       };
 
-      safeSetAiResponse(frontendResult);
-      setCurrentDiagram(prev => ({
-        ...prev,
+      setAiResponse(frontendResult);
+      setCurrentDiagram({
+        ...currentDiagram,
         mermaidCode: result.mermaidCode,
         diagramType: result.diagramType as DiagramData['diagramType']
-      }));
+      });
 
       const providerName = result.metadata.provider || 'AI';
       toast.success(`图表优化成功！(使用 ${providerName})`);
@@ -221,7 +224,7 @@ export const useDiagramGenerator = () => {
     } catch (error) {
       console.error('Agent 图表优化失败:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      safeSetErrorMessage(errorMessage);
+      setErrorMessage(errorMessage);
       toast.error(errorMessage || '优化失败，请重试');
     } finally {
       setIsOptimizing(false);
@@ -309,7 +312,7 @@ export const useDiagramGenerator = () => {
   };
 
   const updateMermaidCode = (code: string) => {
-    setCurrentDiagram(prev => ({ ...prev, mermaidCode: code }));
+    setCurrentDiagram({ ...currentDiagram, mermaidCode: code });
   };
 
   const resetDiagram = () => {
@@ -321,8 +324,8 @@ export const useDiagramGenerator = () => {
       tags: []
     });
     setNaturalInput('');
-    safeSetAiResponse(null);
-    safeSetErrorMessage(null);
+    setAiResponse(null);
+    setErrorMessage(null);
     agentManager.clearAllHistory();
   };
 

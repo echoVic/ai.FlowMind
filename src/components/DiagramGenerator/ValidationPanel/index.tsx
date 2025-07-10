@@ -1,18 +1,17 @@
 /**
  * API连接验证面板
- * 提供前端和服务端的连接验证功能
+ * 使用 Zustand 状态管理，提供前端和服务端的连接验证功能
  */
 import React, { useState } from 'react';
-import { useAtom } from 'jotai';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Zap, Server, Loader2, Wifi } from 'lucide-react';
-import { selectedModelAtom, availableModelsAtom, useDirectCallAtom } from '../../../stores/diagramStore';
+import { useSelectedModel, useAvailableModels, useUseDirectCall } from '../../../stores/hooks';
 import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
 
 const ValidationPanel: React.FC = () => {
-  const [selectedModel] = useAtom(selectedModelAtom);
-  const [availableModels] = useAtom(availableModelsAtom);
-  const [useDirectCall] = useAtom(useDirectCallAtom);
+  const selectedModel = useSelectedModel();
+  const availableModels = useAvailableModels();
+  const useDirectCall = useUseDirectCall();
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<any>(null);
   

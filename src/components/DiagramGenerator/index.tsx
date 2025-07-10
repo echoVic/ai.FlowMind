@@ -1,11 +1,10 @@
 /**
  * 架构图生成器主组件
- * 整合所有功能模块，提供统一的用户界面
+ * 使用 Zustand 状态管理，整合所有功能模块
  */
 import React from 'react';
-import { useAtom } from 'jotai';
 import { motion } from 'framer-motion';
-import { sidebarOpenAtom } from '../../stores/diagramStore';
+import { useSidebarOpen } from '../../stores/hooks';
 import InputPanel from './InputPanel';
 import CodeEditor from './CodeEditor';
 import DiagramPreview from './DiagramPreview';
@@ -14,7 +13,7 @@ import Header from './Header';
 import AIAssistant from './AIAssistant';
 
 const DiagramGenerator: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useAtom(sidebarOpenAtom);
+  const sidebarOpen = useSidebarOpen();
 
   return (
     <div className="flex h-screen bg-gray-50">

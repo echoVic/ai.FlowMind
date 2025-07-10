@@ -15,7 +15,11 @@
       "WebFetch(domain:www.heroui.com)",
       "Bash(npx:*)",
       "Bash(pnpm add:*)",
-      "Bash(git remote add:*)"
+      "Bash(git remote add:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm build:*)",
+      "Bash(timeout 10 pnpm dev)",
+      "Bash(pnpm install:*)"
     ],
     "deny": []
   }

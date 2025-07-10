@@ -1,16 +1,20 @@
 /**
  * 模型管理Hook
- * 负责加载和管理可用的AI模型
+ * 使用 Zustand 状态管理，负责加载和管理可用的AI模型
  */
-import { useAtom } from 'jotai';
 import { useCallback } from 'react';
-import { availableModelsAtom, selectedModelAtom, isLoadingModelsAtom } from '../stores/diagramStore';
+import { useAvailableModels, useSelectedModel, useIsLoadingModels } from '../stores/hooks';
+import { useAppStore } from '../stores/appStore';
 import type { AIModelConfig } from '../shared/types';
 
 export const useModelManager = () => {
-  const [availableModels, setAvailableModels] = useAtom(availableModelsAtom);
-  const [selectedModel, setSelectedModel] = useAtom(selectedModelAtom);
-  const [isLoadingModels, setIsLoadingModels] = useAtom(isLoadingModelsAtom);
+  const availableModels = useAvailableModels();
+  const selectedModel = useSelectedModel();
+  const isLoadingModels = useIsLoadingModels();
+  
+  const setAvailableModels = useAppStore(state => state.setAvailableModels);
+  const setSelectedModel = useAppStore(state => state.setSelectedModel);
+  const setIsLoadingModels = useAppStore(state => state.setIsLoadingModels);
 
   const loadModels = useCallback(async () => {
     if (isLoadingModels) return;

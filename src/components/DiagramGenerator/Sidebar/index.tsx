@@ -1,12 +1,11 @@
 /**
  * 侧边栏组件
- * 显示历史记录、模板库和设置
+ * 使用 Zustand 状态管理，显示历史记录、模板库和设置
  */
 import React, { useState } from 'react';
-import { useAtom } from 'jotai';
 import { motion, AnimatePresence } from 'framer-motion';
 import { History, Bookmark, Settings, Trash2, Calendar } from 'lucide-react';
-import { sidebarOpenAtom } from '../../../stores/diagramStore';
+import { useSidebarOpen } from '../../../stores/hooks';
 import { useDiagramHistory } from '../../../hooks/useDiagramHistory';
 import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
 import type { DiagramData } from '../../../shared/types';
@@ -14,7 +13,7 @@ import type { DiagramData } from '../../../shared/types';
 type TabType = 'history' | 'templates' | 'settings';
 
 const Sidebar: React.FC = () => {
-  const [sidebarOpen] = useAtom(sidebarOpenAtom);
+  const sidebarOpen = useSidebarOpen();
   const [activeTab, setActiveTab] = useState<TabType>('history');
   const { history, isLoading, loadDiagram, deleteDiagram } = useDiagramHistory();
   const { currentDiagram } = useDiagramGenerator();

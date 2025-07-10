@@ -1,18 +1,19 @@
 /**
  * 架构图预览组件
- * 实时渲染Mermaid图表，支持缩放和导出
+ * 使用 Zustand 状态管理，实时渲染 Mermaid 图表，支持缩放和导出
  */
 import { motion } from 'framer-motion';
-import { useAtom } from 'jotai';
 import { Download, Maximize, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import mermaid from 'mermaid';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { currentDiagramAtom, previewConfigAtom } from '../../../stores/diagramStore';
+import { useCurrentDiagram, usePreviewConfig } from '../../../stores/hooks';
+import { useAppStore } from '../../../stores/appStore';
 
 const DiagramPreview: React.FC = () => {
-  const [currentDiagram] = useAtom(currentDiagramAtom);
-  const [previewConfig, setPreviewConfig] = useAtom(previewConfigAtom);
+  const currentDiagram = useCurrentDiagram();
+  const previewConfig = usePreviewConfig();
+  const setPreviewConfig = useAppStore(state => state.setPreviewConfig);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -285,24 +286,24 @@ const DiagramPreview: React.FC = () => {
   }, [isInitialized, currentDiagram.mermaidCode, previewConfig.scale]);
 
   const handleZoomIn = () => {
-    setPreviewConfig(prev => ({
-      ...prev,
-      scale: Math.min(prev.scale + 0.1, 2)
-    }));
+    setPreviewConfig({
+      ...previewConfig,
+      scale: Math.min(previewConfig.scale + 0.1, 2)
+    });
   };
 
   const handleZoomOut = () => {
-    setPreviewConfig(prev => ({
-      ...prev,
-      scale: Math.max(prev.scale - 0.1, 0.2)
-    }));
+    setPreviewConfig({
+      ...previewConfig,
+      scale: Math.max(previewConfig.scale - 0.1, 0.2)
+    });
   };
 
   const handleResetZoom = () => {
-    setPreviewConfig(prev => ({
-      ...prev,
-      scale: 0.7
-    }));
+    setPreviewConfig({
+      ...previewConfig,
+      scale: 1
+    });
   };
 
   const handleExportImage = async () => {

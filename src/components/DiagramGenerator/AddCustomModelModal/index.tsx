@@ -1,15 +1,11 @@
 /**
  * 添加自定义模型弹窗组件
- * 允许用户添加自定义的 AI 模型配置
+ * 使用 Zustand 状态管理，保持原有功能
  */
 import React, { useState } from 'react';
-import { useAtom } from 'jotai';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, AlertCircle, CheckCircle } from 'lucide-react';
-import { 
-  showAddCustomModelAtom,
-  saveCustomModelAtom
-} from '../../../stores/diagramStore';
+import { useAddCustomModelModal } from '../../../stores/hooks';
 import type { AIModelConfig } from '../../../shared/types';
 
 interface CustomModelForm {
@@ -24,8 +20,18 @@ interface CustomModelForm {
 }
 
 const AddCustomModelModal: React.FC = () => {
-  const [showModal, setShowModal] = useAtom(showAddCustomModelAtom);
-  const [, saveCustomModel] = useAtom(saveCustomModelAtom);
+  const {
+    // 状态
+    showAddCustomModel,
+    errorMessage: globalErrorMessage,
+    successMessage: globalSuccessMessage,
+    // 操作
+    setShowAddCustomModel,
+    saveAndCloseModal,
+    showError,
+    showSuccess,
+    clearMessages
+  } = useAddCustomModelModal();
 
   const [form, setForm] = useState<CustomModelForm>({
     provider: '',
@@ -39,8 +45,6 @@ const AddCustomModelModal: React.FC = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const providerOptions = [
     { value: 'openai', label: 'OpenAI', icon: '🤖', placeholder: 'gpt-4, gpt-3.5-turbo' },
@@ -55,8 +59,8 @@ const AddCustomModelModal: React.FC = () => {
     setForm(prev => ({ ...prev, [field]: value }));
     
     // 清除错误消息
-    if (errorMessage) {
-      setErrorMessage(null);
+    if (globalErrorMessage) {
+      clearMessages();
     }
   };
 
@@ -80,7 +84,7 @@ const AddCustomModelModal: React.FC = () => {
   const handleSubmit = async () => {
     const validationError = validateForm();
     if (validationError) {
-      setErrorMessage(validationError);
+      showError(validationError);
       return;
     }
 
@@ -106,10 +110,10 @@ const AddCustomModelModal: React.FC = () => {
         icon: providerOptions.find(p => p.value === form.provider)?.icon || '⚙️'
       };
 
-      const result = saveCustomModel(modelConfig);
+      const result = saveAndCloseModal(modelConfig);
       
       if (result) {
-        setSuccessMessage('自定义模型添加成功！');
+        showSuccess('自定义模型添加成功！');
         
         // 重置表单
         setForm({
@@ -122,34 +126,27 @@ const AddCustomModelModal: React.FC = () => {
           maxTokens: 2048,
           temperature: 0.7
         });
-        
-        // 关闭弹窗
-        setTimeout(() => {
-          setShowModal(false);
-          setSuccessMessage(null);
-        }, 1500);
       } else {
-        setErrorMessage('添加模型失败，请重试');
+        showError('添加模型失败，请重试');
       }
     } catch (error) {
       console.error('添加自定义模型失败:', error);
-      setErrorMessage('添加模型失败，请重试');
+      showError('添加模型失败，请重试');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleClose = () => {
-    setShowModal(false);
-    setErrorMessage(null);
-    setSuccessMessage(null);
+    setShowAddCustomModel(false);
+    clearMessages();
   };
 
   const selectedProvider = providerOptions.find(p => p.value === form.provider);
 
   return (
     <AnimatePresence>
-      {showModal && (
+      {showAddCustomModel && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -321,25 +318,25 @@ const AddCustomModelModal: React.FC = () => {
               </div>
 
               {/* 错误/成功消息 */}
-              {errorMessage && (
+              {globalErrorMessage && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center space-x-2"
                 >
                   <AlertCircle size={16} className="text-red-600" />
-                  <span className="text-sm text-red-800">{errorMessage}</span>
+                  <span className="text-sm text-red-800">{globalErrorMessage}</span>
                 </motion.div>
               )}
 
-              {successMessage && (
+              {globalSuccessMessage && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center space-x-2"
                 >
                   <CheckCircle size={16} className="text-green-600" />
-                  <span className="text-sm text-green-800">{successMessage}</span>
+                  <span className="text-sm text-green-800">{globalSuccessMessage}</span>
                 </motion.div>
               )}
             </div>

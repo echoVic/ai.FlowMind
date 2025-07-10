@@ -1,12 +1,12 @@
 /**
  * 保存模态框组件
- * 提供架构图保存功能
+ * 使用 Zustand 状态管理，提供架构图保存功能
  */
 import React, { useState, useEffect } from 'react';
-import { useAtom } from 'jotai';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Tag } from 'lucide-react';
-import { currentDiagramAtom } from '../../../stores/diagramStore';
+import { useCurrentDiagram } from '../../../stores/hooks';
+import { useAppStore } from '../../../stores/appStore';
 import { useDiagramHistory } from '../../../hooks/useDiagramHistory';
 
 interface SaveModalProps {
@@ -14,7 +14,8 @@ interface SaveModalProps {
 }
 
 const SaveModal: React.FC<SaveModalProps> = ({ onClose }) => {
-  const [currentDiagram, setCurrentDiagram] = useAtom(currentDiagramAtom);
+  const currentDiagram = useCurrentDiagram();
+  const setCurrentDiagram = useAppStore(state => state.setCurrentDiagram);
   const { saveDiagram, isSaving } = useDiagramHistory();
   
   const [title, setTitle] = useState(currentDiagram.title || '');
@@ -37,12 +38,12 @@ const SaveModal: React.FC<SaveModalProps> = ({ onClose }) => {
     
     if (success) {
       // 更新当前图表数据
-      setCurrentDiagram(prev => ({
-        ...prev,
+      setCurrentDiagram({
+        ...currentDiagram,
         title,
         description,
         tags
-      }));
+      });
       onClose();
     }
   };

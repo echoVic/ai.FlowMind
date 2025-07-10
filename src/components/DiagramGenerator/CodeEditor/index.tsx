@@ -1,18 +1,17 @@
 /**
  * 代码编辑器组件
- * 提供Mermaid代码编辑和语法高亮功能
+ * 使用 Zustand 状态管理，提供 Mermaid 代码编辑和语法高亮功能
  */
 import React, { useRef, useEffect } from 'react';
-import { useAtom } from 'jotai';
 import { motion } from 'framer-motion';
 import { Code, Copy, Download } from 'lucide-react';
-import { currentDiagramAtom, editorConfigAtom } from '../../../stores/diagramStore';
+import { useCurrentDiagram, useEditorConfig } from '../../../stores/hooks';
 import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
 import toast from 'react-hot-toast';
 
 const CodeEditor: React.FC = () => {
-  const [currentDiagram] = useAtom(currentDiagramAtom);
-  const [editorConfig] = useAtom(editorConfigAtom);
+  const currentDiagram = useCurrentDiagram();
+  const editorConfig = useEditorConfig();
   const { updateMermaidCode } = useDiagramGenerator();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
