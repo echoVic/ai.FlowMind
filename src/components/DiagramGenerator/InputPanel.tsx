@@ -4,18 +4,34 @@
  */
 import { motion } from 'framer-motion';
 import { useAtom } from 'jotai';
-import { Lightbulb, Settings, Sparkles } from 'lucide-react';
-import React, { useState } from 'react';
+import { Lightbulb, Settings, Sparkles, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { useDiagramGenerator } from '../../hooks/useDiagramGenerator';
-import { currentDiagramAtom, naturalLanguageInputAtom, selectedModelAtom } from '../../stores/diagramStore';
+import { 
+  currentDiagramAtom, 
+  naturalLanguageInputAtom, 
+  selectedModelAtom,
+  availableModelsAtom,
+  showAddCustomModelAtom,
+  loadCustomModelsAtom
+} from '../../stores/diagramStore';
 import DiagnosticPanel from './DiagnosticPanel';
+import AddCustomModelModal from './AddCustomModelModal';
 
 const InputPanel: React.FC = () => {
   const [naturalInput, setNaturalInput] = useAtom(naturalLanguageInputAtom);
   const [currentDiagram, setCurrentDiagram] = useAtom(currentDiagramAtom);
   const [selectedModel, setSelectedModel] = useAtom(selectedModelAtom);
+  const [availableModels] = useAtom(availableModelsAtom);
+  const [, setShowAddModal] = useAtom(showAddCustomModelAtom);
+  const [, loadCustomModels] = useAtom(loadCustomModelsAtom);
   const { isGenerating, generateDiagram } = useDiagramGenerator();
   const [showDiagnostic, setShowDiagnostic] = useState(false);
+
+  // 加载自定义模型
+  useEffect(() => {
+    loadCustomModels();
+  }, [loadCustomModels]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,15 +50,42 @@ const InputPanel: React.FC = () => {
     generateDiagram(example);
   };
 
-  // 可选的模型列表（服务端转发模式）
-  const modelOptions = [
-    { value: 'doubao-seed-1.6', label: '豆包 Seed 1.6 (默认)',icon: '🌋' },
-    { value: 'gpt-4o', label: 'GPT-4o',icon: '🤖' },
-    { value: 'claude-4-sonnet', label: 'Claude 4 Sonnet',icon: '🧠' },
-    { value: 'claude-7-sonnet', label: 'Claude 7 Sonnet',icon: '🧠' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini',icon: '🤖' },
-
+  // 默认模型选项（如果没有加载到动态模型）
+  const defaultModelOptions = [
+    { value: 'doubao-seed-1.6', label: '豆包 Seed 1.6 (默认)', icon: '🌋' },
+    { value: 'gpt-4o', label: 'GPT-4o', icon: '🤖' },
+    { value: 'claude-4-sonnet', label: 'Claude 4 Sonnet', icon: '🧠' },
+    { value: 'claude-7-sonnet', label: 'Claude 7 Sonnet', icon: '🧠' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini', icon: '🤖' },
   ];
+
+  // 获取图标
+  const getProviderIcon = (provider: string) => {
+    switch (provider) {
+      case 'volcengine':
+        return '🌋';
+      case 'openai':
+        return '🤖';
+      case 'claude':
+        return '🧠';
+      case 'azure':
+        return '☁️';
+      case 'gemini':
+        return '💎';
+      default:
+        return '⚙️';
+    }
+  };
+
+  // 使用动态模型列表，如果没有则使用默认
+  const modelOptions = availableModels.length > 0 
+    ? availableModels.map(model => ({
+        value: model.name,
+        label: model.displayName,
+        icon: model.icon || getProviderIcon(model.provider),
+        isCustom: model.name.startsWith('custom_')
+      }))
+    : defaultModelOptions.map(opt => ({ ...opt, isCustom: false }));
 
 
 
@@ -83,7 +126,16 @@ const InputPanel: React.FC = () => {
 
         {/* AI模型选择 */}
         <div className="space-y-2 mb-4">
-          <label className="text-xs font-medium text-gray-700">AI模型</label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-gray-700">AI模型</label>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+            >
+              <Plus size={12} />
+              <span>添加自定义</span>
+            </button>
+          </div>
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
@@ -92,7 +144,7 @@ const InputPanel: React.FC = () => {
           >
             {modelOptions.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.icon} {option.label}
+                {option.icon} {option.label}{option.isCustom ? ' (自定义)' : ''}
               </option>
             ))}
           </select>
@@ -172,6 +224,9 @@ const InputPanel: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* 添加自定义模型弹窗 */}
+      <AddCustomModelModal />
     </div>
   );
 };
