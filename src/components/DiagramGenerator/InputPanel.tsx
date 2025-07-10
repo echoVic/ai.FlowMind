@@ -50,9 +50,13 @@ const InputPanel: React.FC = () => {
     generateDiagram(example);
   };
 
-  // 默认模型选项（只保留实际可用的）
+  // 默认模型选项（火山引擎模型）
   const defaultModelOptions = [
-    { value: 'ep-20250617131345-rshkp', label: '豆包 Seed (默认)', icon: '🌋' },
+    { value: 'ep-20250617131345-rshkp', label: '🌋 Doubao-Seed-1.6 | 250615', icon: '🌋' },
+    { value: 'ep-20250612135125-br9k7', label: '🌋 Doubao-Seed-1.6-thinking | 250615', icon: '🌋' },
+    { value: 'ep-20250530171307-rrcc5', label: '🌋 DeepSeek-R1 | 250528', icon: '🔥' },
+    { value: 'ep-20250530171222-q42h8', label: '🌋 DeepSeek-V3', icon: '🔥' },
+    { value: 'ep-20250417144747-rgffm', label: '🌋 Doubao-1.5-thinking-pro', icon: '🌋' },
   ];
 
   // 获取图标
