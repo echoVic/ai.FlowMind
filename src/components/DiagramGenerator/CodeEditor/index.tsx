@@ -2,58 +2,22 @@
  * 代码编辑器组件
  * 使用 CodeMirror 提供 Mermaid 代码编辑、语法高亮和实时校验功能
  */
-import { lintGutter } from '@codemirror/lint';
 import { EditorView } from '@codemirror/view';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 import CodeMirror from '@uiw/react-codemirror';
 import { mermaid } from 'codemirror-lang-mermaid';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Code, Copy, Download } from 'lucide-react';
+import { Code, Copy, Download } from 'lucide-react';
 import React, { useCallback } from 'react';
 import toast from 'react-hot-toast';
 
 import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
-import { useMermaidLinter } from '../../../hooks/useMermaidLinter';
 import { useCurrentDiagram, useEditorConfig } from '../../../stores/hooks';
-
-// 自定义 lint 样式
-const lintTheme = EditorView.theme({
-  '.cm-diagnostic': {
-    padding: '3px 6px 3px 8px',
-    marginLeft: '-1px',
-    display: 'block',
-    whiteSpace: 'pre-wrap'
-  },
-  '.cm-diagnostic-error': {
-    borderLeft: '3px solid #d32f2f',
-    backgroundColor: 'rgba(211, 47, 47, 0.1)',
-    color: '#ff6b6b'
-  },
-  '.cm-diagnosticText': {
-    fontSize: '12px',
-    fontFamily: 'ui-monospace, monospace'
-  },
-  '.cm-lintRange-error': {
-    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(211, 47, 47, 0.3) 3px, rgba(211, 47, 47, 0.3) 6px)',
-    borderBottom: '2px solid #d32f2f'
-  },
-  '.cm-tooltip.cm-tooltip-lint': {
-    backgroundColor: '#1e1e1e',
-    border: '1px solid #d32f2f',
-    borderRadius: '4px',
-    color: '#ffffff',
-    fontSize: '12px',
-    padding: '8px',
-    maxWidth: '300px'
-  }
-});
 
 const CodeEditor: React.FC = () => {
   const currentDiagram = useCurrentDiagram();
   const editorConfig = useEditorConfig();
   const { updateMermaidCode } = useDiagramGenerator();
-
-  const mermaidLinter = useMermaidLinter();
 
   const handleCodeChange = useCallback((value: string) => {
     updateMermaidCode(value);
@@ -123,9 +87,6 @@ const CodeEditor: React.FC = () => {
           theme={vscodeDark}
           extensions={[
             mermaid(),
-            lintGutter(),
-            mermaidLinter,
-            lintTheme,
             EditorView.theme({
               '&': {
                 height: '100%',
@@ -171,12 +132,6 @@ const CodeEditor: React.FC = () => {
           <div className="flex items-center space-x-4">
             <span>行数: {currentDiagram.mermaidCode.split('\n').length}</span>
             <span>字符数: {currentDiagram.mermaidCode.length}</span>
-          </div>
-          
-          {/* 提示信息 */}
-          <div className="flex items-center space-x-1 text-gray-500">
-            <AlertTriangle size={12} />
-            <span>语法错误会以红色下划线显示，鼠标悬停查看详情</span>
           </div>
         </div>
       </div>

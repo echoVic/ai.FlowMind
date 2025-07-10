@@ -3,24 +3,70 @@
  * 使用 Zustand 状态管理，实时渲染 Mermaid 图表，支持缩放和导出
  */
 import { motion } from 'framer-motion';
-import { Download, Maximize, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, Download, Maximize, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import mermaid from 'mermaid';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useAppStore } from '../../../stores/appStore';
 import { useCurrentDiagram, usePreviewConfig } from '../../../stores/hooks';
 
+// 错误信息接口
+interface MermaidError {
+  message: string;
+  line?: number;
+  column?: number;
+  type?: 'syntax' | 'parse' | 'render' | 'unknown';
+}
+
 const DiagramPreview: React.FC = () => {
   const currentDiagram = useCurrentDiagram();
   const previewConfig = usePreviewConfig();
   const setPreviewConfig = useAppStore(state => state.setPreviewConfig);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MermaidError | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderIdRef = useRef(0);
   const initializationRef = useRef(false);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
+  // 解析错误信息
+  const parseError = useCallback((error: any): MermaidError => {
+    const errorMessage = error?.str || error?.message || error?.toString() || '未知错误';
+    
+    // 尝试从错误信息中提取行号
+    const lineMatch = /Parse error on line (\d+)/.exec(errorMessage);
+    const positionMatch = /(\d+):(\d+)/.exec(errorMessage);
+    
+    let line: number | undefined;
+    let column: number | undefined;
+    let type: MermaidError['type'] = 'unknown';
+    
+    if (lineMatch) {
+      line = parseInt(lineMatch[1], 10);
+      type = 'parse';
+    } else if (positionMatch) {
+      line = parseInt(positionMatch[1], 10);
+      column = parseInt(positionMatch[2], 10);
+      type = 'syntax';
+    }
+    
+    // 根据错误信息判断类型
+    if (errorMessage.includes('Parse error')) {
+      type = 'parse';
+    } else if (errorMessage.includes('Syntax error')) {
+      type = 'syntax';
+    } else if (errorMessage.includes('render')) {
+      type = 'render';
+    }
+    
+    return {
+      message: errorMessage,
+      line,
+      column,
+      type
+    };
+  }, []);
 
   // 初始化Mermaid - 只执行一次
   useEffect(() => {
@@ -88,7 +134,8 @@ const DiagramPreview: React.FC = () => {
       } catch (err) {
         console.error('Mermaid初始化失败:', err);
         if (mounted) {
-          setError(`图表渲染库初始化失败: ${err.message}`);
+          const parsedError = parseError(err);
+          setError(parsedError);
           setIsInitialized(false);
         }
         // 重置初始化标志，允许重试
@@ -105,7 +152,7 @@ const DiagramPreview: React.FC = () => {
       mounted = false;
       clearTimeout(timer);
     };
-  }, []); // 空依赖数组，确保只运行一次
+  }, [parseError]); // 添加 parseError 依赖
 
   // 渲染图表的核心函数
   const renderDiagram = useCallback(async () => {
@@ -224,47 +271,98 @@ const DiagramPreview: React.FC = () => {
       
       if (currentRenderId !== renderIdRef.current) return;
       
-      const errorMsg = err instanceof Error ? err.message : '未知错误';
-      setError(`语法错误：${errorMsg}`);
+      const parsedError = parseError(err);
+      setError(parsedError);
       
       // 显示错误信息
       if (containerRef.current) {
+        const errorTypeIcons = {
+          'syntax': '🔍',
+          'parse': '📝',
+          'render': '🎨',
+          'unknown': '⚠️'
+        };
+        
+        const errorTypeNames = {
+          'syntax': '语法错误',
+          'parse': '解析错误',
+          'render': '渲染错误',
+          'unknown': '未知错误'
+        };
+        
+        const icon = errorTypeIcons[parsedError.type || 'unknown'];
+        const typeName = errorTypeNames[parsedError.type || 'unknown'];
+        
+        let locationInfo = '';
+        if (parsedError.line) {
+          locationInfo = `第 ${parsedError.line} 行`;
+          if (parsedError.column) {
+            locationInfo += `，第 ${parsedError.column} 列`;
+          }
+        }
+        
         containerRef.current.innerHTML = `
           <div style="
             display: flex; 
             flex-direction: column; 
             align-items: center; 
             justify-content: center; 
-            height: 300px; 
+            height: 100%; 
+            min-height: 300px;
             color: #ef4444;
             text-align: center;
             padding: 20px;
+            background: #fef2f2;
+            border-radius: 8px;
+            margin: 20px;
           ">
             <div style="
-              width: 48px; 
-              height: 48px; 
-              border: 2px solid #ef4444; 
+              width: 64px; 
+              height: 64px; 
+              border: 3px solid #ef4444; 
               border-radius: 50%; 
               display: flex; 
               align-items: center; 
               justify-content: center; 
-              margin-bottom: 16px;
+              margin-bottom: 20px;
+              font-size: 24px;
+              background: white;
             ">
-              ⚠️
+              ${icon}
             </div>
-            <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600;">渲染失败</h3>
-            <p style="margin: 0; color: #6b7280; font-size: 14px;">请检查 Mermaid 语法是否正确</p>
-            <details style="margin-top: 12px; max-width: 400px;">
-              <summary style="cursor: pointer; color: #6b7280; font-size: 12px;">查看详细错误</summary>
-              <pre style="
+            <h3 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 600; color: #dc2626;">${typeName}</h3>
+            ${locationInfo ? `<p style="margin: 0 0 12px 0; color: #7f1d1d; font-size: 14px; font-weight: 500;">${locationInfo}</p>` : ''}
+            <p style="margin: 0 0 16px 0; color: #6b7280; font-size: 14px; max-width: 400px; line-height: 1.5;">
+              请检查 Mermaid 语法是否正确
+            </p>
+            <details style="margin-top: 12px; max-width: 500px; text-align: left;">
+              <summary style="
+                cursor: pointer; 
+                color: #374151; 
+                font-size: 14px; 
+                font-weight: 500;
+                padding: 8px 12px;
+                background: #f3f4f6;
+                border-radius: 6px;
+                margin-bottom: 8px;
+              ">🔍 查看错误详情</summary>
+              <div style="
                 margin-top: 8px; 
-                padding: 8px; 
-                background: #f3f4f6; 
-                border-radius: 4px; 
-                font-size: 11px; 
+                padding: 12px; 
+                background: #1f2937; 
+                border-radius: 6px; 
+                font-size: 12px; 
                 overflow: auto;
-                text-align: left;
-              ">${errorMsg}</pre>
+                color: #f3f4f6;
+                font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                line-height: 1.4;
+                border: 1px solid #374151;
+              ">
+                <div style="color: #f87171; font-weight: 600; margin-bottom: 4px;">错误类型：${typeName}</div>
+                ${locationInfo ? `<div style="color: #60a5fa; margin-bottom: 8px;">位置：${locationInfo}</div>` : ''}
+                <div style="color: #d1d5db;">消息：</div>
+                <div style="color: #fde047; word-break: break-word; white-space: pre-wrap; margin-top: 4px;">${parsedError.message}</div>
+              </div>
             </details>
           </div>
         `;
@@ -274,7 +372,7 @@ const DiagramPreview: React.FC = () => {
         setIsLoading(false);
       }
     }
-  }, [currentDiagram.mermaidCode, previewConfig.scale, isInitialized]); // 添加所有依赖
+  }, [currentDiagram.mermaidCode, previewConfig.scale, isInitialized, parseError]); // 添加所有依赖
 
   // 监听初始化完成和代码变化，进行渲染
   useEffect(() => {
@@ -302,7 +400,7 @@ const DiagramPreview: React.FC = () => {
         console.log('等待Mermaid初始化完成...');
       }
     }
-  }, [isInitialized, currentDiagram.mermaidCode, previewConfig.scale]);
+  }, [isInitialized, currentDiagram.mermaidCode, previewConfig.scale, renderDiagram]);
 
   // 监听容器尺寸变化，确保在布局变化时重新渲染
   useEffect(() => {
@@ -407,7 +505,15 @@ const DiagramPreview: React.FC = () => {
           )}
           {error && (
             <div className="flex items-center space-x-2">
-              <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">渲染失败</span>
+              <div className="flex items-center space-x-1">
+                <AlertTriangle size={14} className="text-red-500" />
+                <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">
+                  {error.type === 'syntax' ? '语法错误' : 
+                   error.type === 'parse' ? '解析错误' : 
+                   error.type === 'render' ? '渲染错误' : '错误'}
+                  {error.line && ` (第${error.line}行)`}
+                </span>
+              </div>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
