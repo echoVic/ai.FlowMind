@@ -125,9 +125,35 @@ const CodeEditor: React.FC = () => {
             mermaid(),
             lintGutter(),
             mermaidLinter,
-            lintTheme
+            lintTheme,
+            EditorView.theme({
+              '&': {
+                height: '100%',
+                maxHeight: '100%'
+              },
+              '.cm-editor': {
+                height: '100%',
+                maxHeight: '100%'
+              },
+              '.cm-scroller': {
+                height: '100%',
+                maxHeight: '100%',
+                overflowY: 'auto',
+                overflowX: 'auto'
+              },
+              '.cm-content': {
+                padding: '10px'
+              },
+              '.cm-focused': {
+                outline: 'none'
+              }
+            })
           ]}
-          style={{ fontSize: editorConfig.fontSize }}
+          style={{ 
+            fontSize: editorConfig.fontSize,
+            height: '100%',
+            maxHeight: '100%'
+          }}
           basicSetup={{
             lineNumbers: true,
             highlightActiveLine: true,

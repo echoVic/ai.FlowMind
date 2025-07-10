@@ -2,7 +2,7 @@
  * 架构图历史记录Hook
  * 使用 Zustand 状态管理，处理保存、加载、删除历史记录（基于本地存储）
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import {
   useCurrentDiagram,
@@ -11,6 +11,7 @@ import {
 } from '../stores/hooks';
 import { useAppStore } from '../stores/appStore';
 import type { DiagramData } from '../shared/types';
+import { useMount } from 'ahooks';
 
 const STORAGE_KEY = 'diagram-history';
 
@@ -25,7 +26,7 @@ export const useDiagramHistory = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // 从本地存储加载历史记录
-  useEffect(() => {
+  useMount(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -37,7 +38,7 @@ export const useDiagramHistory = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [setDiagramHistory]);
+  });
 
   // 保存历史记录到本地存储
   const saveHistoryToStorage = (history: DiagramData[]) => {

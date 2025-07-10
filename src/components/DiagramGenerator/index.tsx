@@ -32,10 +32,10 @@ const DiagramGenerator: React.FC = () => {
         {/* 头部 */}
         <Header />
 
-        {/* 核心工作区 - 三栏布局 */}
+        {/* 核心工作区 - 调整布局比例，让预览区域更大 */}
         <div className="flex-1 flex bg-white overflow-auto">
-          {/* 左栏：输入与生成 */}
-          <div className="w-1/3 flex flex-col border-r border-gray-100">
+          {/* 左栏：输入与生成 - 缩小到1/4 */}
+          <div className="w-1/4 flex flex-col border-r border-gray-100">
             <InputPanel />
             
             {/* AI助手卡片 */}
@@ -44,13 +44,13 @@ const DiagramGenerator: React.FC = () => {
             </div>
           </div>
 
-          {/* 中栏：代码编辑 */}
-          <div className="w-1/3 border-r border-gray-100">
+          {/* 中栏：代码编辑 - 缩小到1/4 */}
+          <div className="w-1/4 border-r border-gray-100">
             <CodeEditor />
           </div>
 
-          {/* 右栏：实时预览 */}
-          <div className="w-1/3">
+          {/* 右栏：实时预览 - 扩大到1/2，占用更多空间 */}
+          <div className="w-1/2">
             <DiagramPreview />
           </div>
         </div>

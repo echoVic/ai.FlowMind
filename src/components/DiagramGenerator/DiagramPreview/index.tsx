@@ -7,8 +7,8 @@ import { Download, Maximize, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import mermaid from 'mermaid';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useCurrentDiagram, usePreviewConfig } from '../../../stores/hooks';
 import { useAppStore } from '../../../stores/appStore';
+import { useCurrentDiagram, usePreviewConfig } from '../../../stores/hooks';
 
 const DiagramPreview: React.FC = () => {
   const currentDiagram = useCurrentDiagram();
@@ -20,6 +20,7 @@ const DiagramPreview: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const renderIdRef = useRef(0);
   const initializationRef = useRef(false);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   // 初始化Mermaid - 只执行一次
   useEffect(() => {
@@ -112,13 +113,28 @@ const DiagramPreview: React.FC = () => {
       return;
     }
 
+    const container = containerRef.current;
+    
+    // 检查容器尺寸是否有效，如果没有则等待一下再重试
+    if (container.clientWidth === 0 || container.clientHeight === 0) {
+      console.log('容器尺寸还未准备好，等待重试...', {
+        width: container.clientWidth,
+        height: container.clientHeight
+      });
+      
+      // 延迟重试
+      setTimeout(() => {
+        renderDiagram();
+      }, 100);
+      return;
+    }
+
     const currentRenderId = ++renderIdRef.current;
     setIsLoading(true);
     setError(null);
 
     try {
       // 清空容器
-      const container = containerRef.current;
       container.innerHTML = '';
 
       // 清理 mermaidCode，移除可能的代码块标记（额外保护）
@@ -150,15 +166,14 @@ const DiagramPreview: React.FC = () => {
       const wrapper = document.createElement('div');
       wrapper.className = 'mermaid-wrapper';
       wrapper.style.cssText = `
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 200px;
-        padding: 20px;
+        width: 100%;
+        height: 100%;
+        padding: 5px;
         transform: scale(${previewConfig.scale});
         transform-origin: center center;
         transition: transform 0.2s ease;
         overflow: visible;
+        box-sizing: border-box;
       `;
       
       wrapper.innerHTML = svg;
@@ -171,31 +186,35 @@ const DiagramPreview: React.FC = () => {
         const originalWidth = svgElement.getAttribute('width') || '800';
         const originalHeight = svgElement.getAttribute('height') || '600';
         
-        // 计算合适的显示尺寸（限制最大宽度）
-        const maxWidth = Math.min(800, container.clientWidth - 80); // 预留边距
-        const maxHeight = Math.min(600, container.clientHeight - 80);
+        // 让SVG充满整个可用空间
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
         
-        // 计算缩放比例以适应容器
-        const widthRatio = maxWidth / parseInt(originalWidth);
-        const heightRatio = maxHeight / parseInt(originalHeight);
-        const baseScale = Math.min(widthRatio, heightRatio, 1); // 最大不超过原始尺寸
-        
+        // 设置SVG样式让它充满容器
         svgElement.style.cssText = `
-          width: ${Math.min(parseInt(originalWidth) * baseScale, maxWidth)}px;
-          height: auto;
-          max-width: 100%;
+          width: 100%;
+          height: 100%;
+          max-width: none;
+          max-height: none;
           background: white;
           border-radius: 8px;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
           display: block;
+          object-fit: contain;
         `;
+        
+        // 设置SVG的viewBox属性以保持比例
+        const viewBox = svgElement.getAttribute('viewBox') || `0 0 ${originalWidth} ${originalHeight}`;
+        svgElement.setAttribute('viewBox', viewBox);
+        svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
         
         console.log('图表渲染成功，尺寸：', {
           original: { width: originalWidth, height: originalHeight },
-          display: { 
-            width: Math.min(parseInt(originalWidth) * baseScale, maxWidth),
-            scale: baseScale 
-          }
+          container: { 
+            width: containerWidth,
+            height: containerHeight
+          },
+          display: '100% (充满容器)'
         });
       }
 
@@ -265,10 +284,10 @@ const DiagramPreview: React.FC = () => {
       // 清除之前的错误状态
       setError(null);
       
-      // 使用较短的延时，避免用户等待过久
+      // 增加延时，确保容器布局完成
       const timer = setTimeout(() => {
         renderDiagram();
-      }, 10);
+      }, 50);
       
       return () => clearTimeout(timer);
     } else {
@@ -284,6 +303,36 @@ const DiagramPreview: React.FC = () => {
       }
     }
   }, [isInitialized, currentDiagram.mermaidCode, previewConfig.scale]);
+
+  // 监听容器尺寸变化，确保在布局变化时重新渲染
+  useEffect(() => {
+    if (!containerRef.current || !isInitialized) return;
+
+    const container = containerRef.current;
+    
+    // 创建ResizeObserver监听容器尺寸变化
+    resizeObserverRef.current = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === container && currentDiagram.mermaidCode.trim()) {
+          console.log('容器尺寸发生变化，重新渲染图表');
+          // 延迟一下确保尺寸更新完成
+          setTimeout(() => {
+            renderDiagram();
+          }, 100);
+          break;
+        }
+      }
+    });
+
+    resizeObserverRef.current.observe(container);
+
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+    };
+  }, [isInitialized, currentDiagram.mermaidCode, renderDiagram]);
 
   const handleZoomIn = () => {
     setPreviewConfig({
@@ -462,14 +511,14 @@ const DiagramPreview: React.FC = () => {
         )}
 
         {!isLoading && isInitialized && currentDiagram.mermaidCode.trim() && !error && (
-          <div className="flex items-center justify-center min-h-full p-4">
+          <div className="w-full h-full">
             <div 
               ref={containerRef}
-              className="w-full max-w-full flex justify-center"
+              className="w-full h-full"
               style={{ 
-                minHeight: '200px',
+                minHeight: '100%',
                 maxWidth: '100%',
-                overflow: 'hidden'
+                overflow: 'auto'
               }}
             />
           </div>

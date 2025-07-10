@@ -1,6 +1,7 @@
 import { Diagnostic, linter } from '@codemirror/lint';
+import { useMount } from 'ahooks';
 import mermaid from 'mermaid';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 /**
  * 一个 React Hook，它创建并返回一个用于 CodeMirror 的 Mermaid 语法 Linter 扩展。
@@ -12,7 +13,7 @@ export const useMermaidLinter = () => {
 
   // 在使用此 Hook 的组件挂载时，初始化一次 Mermaid。
   // 这避免了潜在的竞争条件或重复初始化。
-  useEffect(() => {
+  useMount(() => {
     const initMermaid = async () => {
       try {
         await mermaid.initialize({ 
@@ -30,7 +31,7 @@ export const useMermaidLinter = () => {
     };
     
     initMermaid();
-  }, []); // 空依赖数组确保此 effect 只运行一次。
+  }); // 空依赖数组确保此 effect 只运行一次。
 
   const mermaidLinterExtension = useMemo(() => {
     return linter(view => {
