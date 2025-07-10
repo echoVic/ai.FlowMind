@@ -1,23 +1,63 @@
 /**
  * 代码编辑器组件
- * 使用 Zustand 状态管理，提供 Mermaid 代码编辑和语法高亮功能
+ * 使用 CodeMirror 提供 Mermaid 代码编辑、语法高亮和实时校验功能
  */
-import React, { useRef, useEffect } from 'react';
+import { lintGutter } from '@codemirror/lint';
+import { EditorView } from '@codemirror/view';
+import { vscodeDark } from '@uiw/codemirror-theme-vscode';
+import CodeMirror from '@uiw/react-codemirror';
+import { mermaid } from 'codemirror-lang-mermaid';
 import { motion } from 'framer-motion';
-import { Code, Copy, Download } from 'lucide-react';
-import { useCurrentDiagram, useEditorConfig } from '../../../stores/hooks';
-import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
+import { AlertTriangle, Code, Copy, Download } from 'lucide-react';
+import React, { useCallback } from 'react';
 import toast from 'react-hot-toast';
+
+import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
+import { useMermaidLinter } from '../../../hooks/useMermaidLinter';
+import { useCurrentDiagram, useEditorConfig } from '../../../stores/hooks';
+
+// 自定义 lint 样式
+const lintTheme = EditorView.theme({
+  '.cm-diagnostic': {
+    padding: '3px 6px 3px 8px',
+    marginLeft: '-1px',
+    display: 'block',
+    whiteSpace: 'pre-wrap'
+  },
+  '.cm-diagnostic-error': {
+    borderLeft: '3px solid #d32f2f',
+    backgroundColor: 'rgba(211, 47, 47, 0.1)',
+    color: '#ff6b6b'
+  },
+  '.cm-diagnosticText': {
+    fontSize: '12px',
+    fontFamily: 'ui-monospace, monospace'
+  },
+  '.cm-lintRange-error': {
+    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(211, 47, 47, 0.3) 3px, rgba(211, 47, 47, 0.3) 6px)',
+    borderBottom: '2px solid #d32f2f'
+  },
+  '.cm-tooltip.cm-tooltip-lint': {
+    backgroundColor: '#1e1e1e',
+    border: '1px solid #d32f2f',
+    borderRadius: '4px',
+    color: '#ffffff',
+    fontSize: '12px',
+    padding: '8px',
+    maxWidth: '300px'
+  }
+});
 
 const CodeEditor: React.FC = () => {
   const currentDiagram = useCurrentDiagram();
   const editorConfig = useEditorConfig();
   const { updateMermaidCode } = useDiagramGenerator();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    updateMermaidCode(e.target.value);
-  };
+  const mermaidLinter = useMermaidLinter();
+
+  const handleCodeChange = useCallback((value: string) => {
+    updateMermaidCode(value);
+  }, [updateMermaidCode]);
 
   const handleCopyCode = async () => {
     try {
@@ -41,21 +81,14 @@ const CodeEditor: React.FC = () => {
     toast.success('代码文件已下载！');
   };
 
-  // 自动调整文本域高度
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-    }
-  }, [currentDiagram.mermaidCode]);
-
   return (
-    <div className="h-full flex flex-col bg-gray-900">
+    <div className="h-full flex flex-col bg-gray-900 text-white">
       {/* 标题栏 */}
       <div className="flex items-center justify-between p-4 border-b border-gray-700">
         <div className="flex items-center space-x-2">
           <Code className="text-green-400" size={20} />
-          <h2 className="font-semibold text-white">Mermaid 代码编辑器</h2>
+          <h2 className="font-semibold">Mermaid 代码编辑器</h2>
+  
         </div>
         
         <div className="flex items-center space-x-2">
@@ -63,7 +96,7 @@ const CodeEditor: React.FC = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleCopyCode}
-            className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white"
+            className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600"
             title="复制代码"
           >
             <Copy size={16} />
@@ -73,7 +106,7 @@ const CodeEditor: React.FC = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleDownloadCode}
-            className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white"
+            className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600"
             title="下载代码"
           >
             <Download size={16} />
@@ -82,23 +115,43 @@ const CodeEditor: React.FC = () => {
       </div>
 
       {/* 编辑器区域 */}
-      <div className="flex-1 p-4">
-        <textarea
-          ref={textareaRef}
+      <div className="flex-1 overflow-hidden">
+        <CodeMirror
           value={currentDiagram.mermaidCode}
           onChange={handleCodeChange}
-          className="w-full h-full min-h-[400px] p-4 bg-gray-800 text-green-400 font-mono text-sm border border-gray-700 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="在这里编辑 Mermaid 代码..."
+          height="100%"
+          theme={vscodeDark}
+          extensions={[
+            mermaid(),
+            lintGutter(),
+            mermaidLinter,
+            lintTheme
+          ]}
           style={{ fontSize: editorConfig.fontSize }}
-          spellCheck={false}
+          basicSetup={{
+            lineNumbers: true,
+            highlightActiveLine: true,
+            highlightActiveLineGutter: true,
+            foldGutter: true,
+            autocompletion: true,
+            syntaxHighlighting: true,
+          }}
         />
       </div>
 
       {/* 状态栏 */}
       <div className="px-4 py-2 bg-gray-800 border-t border-gray-700 text-xs text-gray-400">
         <div className="flex justify-between items-center">
-          <span>行数: {currentDiagram.mermaidCode.split('\n').length}</span>
-          <span>字符数: {currentDiagram.mermaidCode.length}</span>
+          <div className="flex items-center space-x-4">
+            <span>行数: {currentDiagram.mermaidCode.split('\n').length}</span>
+            <span>字符数: {currentDiagram.mermaidCode.length}</span>
+          </div>
+          
+          {/* 提示信息 */}
+          <div className="flex items-center space-x-1 text-gray-500">
+            <AlertTriangle size={12} />
+            <span>语法错误会以红色下划线显示，鼠标悬停查看详情</span>
+          </div>
         </div>
       </div>
     </div>

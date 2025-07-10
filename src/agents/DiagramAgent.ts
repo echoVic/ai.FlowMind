@@ -543,7 +543,7 @@ ${request.existingCode}
       metadata: {
         model: this.model._llmType(),
         provider: this.getProviderName(),
-        usage: this.extractUsageInfo('')
+        usage: this.extractUsageInfo()
       }
     };
   }
@@ -563,7 +563,7 @@ ${request.existingCode}
   /**
    * 提取使用信息
    */
-  private extractUsageInfo(response: string): { totalTokens?: number; promptTokens?: number; completionTokens?: number } | undefined {
+  private extractUsageInfo(): { totalTokens?: number; promptTokens?: number; completionTokens?: number } | undefined {
     // 这里可以根据不同提供商的响应格式提取token使用信息
     return undefined;
   }

@@ -2,15 +2,15 @@
  * 架构图生成器主组件
  * 使用 Zustand 状态管理，整合所有功能模块
  */
-import React from 'react';
 import { motion } from 'framer-motion';
+import React from 'react';
 import { useSidebarOpen } from '../../stores/hooks';
-import InputPanel from './InputPanel';
+import AIAssistant from './AIAssistant';
 import CodeEditor from './CodeEditor';
 import DiagramPreview from './DiagramPreview';
-import Sidebar from './Sidebar';
 import Header from './Header';
-import AIAssistant from './AIAssistant';
+import InputPanel from './InputPanel';
+import Sidebar from './Sidebar';
 
 const DiagramGenerator: React.FC = () => {
   const sidebarOpen = useSidebarOpen();
@@ -33,7 +33,7 @@ const DiagramGenerator: React.FC = () => {
         <Header />
 
         {/* 核心工作区 - 三栏布局 */}
-        <div className="flex-1 flex bg-white">
+        <div className="flex-1 flex bg-white overflow-auto">
           {/* 左栏：输入与生成 */}
           <div className="w-1/3 flex flex-col border-r border-gray-100">
             <InputPanel />

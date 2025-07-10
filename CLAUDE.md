@@ -152,6 +152,8 @@ NEXT_PUBLIC_DEFAULT_MAX_TOKENS=2048
 
 ## Development Notes
 
+- 优先使用简单 新的 开源的方案
+
 ### TypeScript Configuration
 - Base URL aliasing: `@/*` maps to `./src/*`
 - Strict mode disabled for flexibility
