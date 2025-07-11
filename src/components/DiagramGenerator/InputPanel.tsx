@@ -91,6 +91,13 @@ const InputPanel: React.FC = () => {
       }))
     : defaultModelOptions.map(opt => ({ ...opt, isCustom: false }));
 
+  // 如果当前没有选择模型，自动选择第一个可用模型
+  React.useEffect(() => {
+    if (!selectedModel && modelOptions.length > 0) {
+      setSelectedModel(modelOptions[0].value);
+    }
+  }, [selectedModel, modelOptions, setSelectedModel]);
+
 
 
   return (

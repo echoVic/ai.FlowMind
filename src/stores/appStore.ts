@@ -126,7 +126,7 @@ export const useAppStore = create<AppStore>()(
     // === 初始状态 ===
     currentDiagram: DEFAULT_DIAGRAM,
     naturalLanguageInput: '',
-    selectedModel: 'ep-20250617131345-rshkp', // 豆包默认端点
+    selectedModel: '', // 动态选择模型，不硬编码
     availableModels: [],
 
     isGenerating: false,
@@ -162,7 +162,19 @@ export const useAppStore = create<AppStore>()(
     setCurrentDiagram: (diagram) => set({ currentDiagram: diagram }),
     setNaturalLanguageInput: (input) => set({ naturalLanguageInput: input }),
     setSelectedModel: (model) => set({ selectedModel: model }),
-    setAvailableModels: (models) => set({ availableModels: models }),
+    setAvailableModels: (models) => {
+      set({ availableModels: models });
+      
+      // 如果当前没有选择模型，或者选择的模型不在新的模型列表中，自动选择第一个模型
+      const currentSelectedModel = get().selectedModel;
+      if (!currentSelectedModel || !models.find(m => m.name === currentSelectedModel)) {
+        const firstModel = models[0];
+        if (firstModel) {
+          set({ selectedModel: firstModel.name });
+          console.log(`自动选择模型: ${firstModel.name}`);
+        }
+      }
+    },
 
     // === 加载状态 Actions ===
     setIsGenerating: (loading) => set({ isGenerating: loading }),

@@ -138,7 +138,7 @@ export class VolcengineLangChainProvider extends BaseChatModel {
     
     this.apiKey = config.apiKey;
     this.endpoint = config.endpoint || 'https://ark.cn-beijing.volces.com/api/v3';
-    this.modelName = config.modelName || 'ep-20250617131345-rshkp';
+    this.modelName = config.modelName || process.env.NEXT_PUBLIC_ARK_MODEL_NAME || 'ep-20250617131345-rshkp';
     this.temperature = config.temperature || 0.7;
     this.maxTokens = config.maxTokens || 2048;
   }
@@ -388,32 +388,74 @@ ${request.existingCode}
       console.log('DiagramAgent: 开始解析响应');
       console.log('DiagramAgent: 原始响应:', response.substring(0, 200) + '...');
       
-      // 尝试解析JSON响应
+      // 首先尝试解析JSON响应
       const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('无法找到JSON响应');
+      if (jsonMatch) {
+        try {
+          let jsonString = jsonMatch[0];
+          console.log('DiagramAgent: 提取的JSON字符串:', jsonString.substring(0, 100) + '...');
+
+          // 修复JSON中的控制字符问题
+          try {
+            // 直接解析，如果失败则进行修复
+            const parsed = JSON.parse(jsonString);
+            const validated = this.validateAndCleanResponse(parsed);
+            return this.buildResult(validated, request);
+          } catch (parseError) {
+            console.log('DiagramAgent: JSON解析失败，尝试修复:', parseError.message);
+            
+            // 尝试修复JSON字符串
+            const fixedJsonString = this.fixJsonString(jsonString);
+            console.log('DiagramAgent: 修复后的JSON:', fixedJsonString.substring(0, 100) + '...');
+            
+            const parsed = JSON.parse(fixedJsonString);
+            const validated = this.validateAndCleanResponse(parsed);
+            return this.buildResult(validated, request);
+          }
+        } catch (jsonError) {
+          console.log('DiagramAgent: JSON解析彻底失败，尝试解析为纯Mermaid代码');
+        }
       }
 
-      let jsonString = jsonMatch[0];
-      console.log('DiagramAgent: 提取的JSON字符串:', jsonString.substring(0, 100) + '...');
-
-      // 修复JSON中的控制字符问题
-      try {
-        // 直接解析，如果失败则进行修复
-        const parsed = JSON.parse(jsonString);
-        const validated = this.validateAndCleanResponse(parsed);
-        return this.buildResult(validated, request);
-      } catch (parseError) {
-        console.log('DiagramAgent: JSON解析失败，尝试修复:', parseError.message);
+      // 如果JSON解析失败，尝试解析为纯Mermaid代码
+      const mermaidMatch = response.match(/```mermaid\n([\s\S]*?)\n```/);
+      if (mermaidMatch) {
+        const mermaidCode = mermaidMatch[1];
+        console.log('DiagramAgent: 找到Mermaid代码块:', mermaidCode.substring(0, 100) + '...');
         
-        // 尝试修复JSON字符串
-        const fixedJsonString = this.fixJsonString(jsonString);
-        console.log('DiagramAgent: 修复后的JSON:', fixedJsonString.substring(0, 100) + '...');
+        // 自动检测图表类型
+        const detectedType = this.detectDiagramType(mermaidCode);
         
-        const parsed = JSON.parse(fixedJsonString);
-        const validated = this.validateAndCleanResponse(parsed);
-        return this.buildResult(validated, request);
+        return {
+          mermaidCode: mermaidCode,
+          explanation: '已生成Mermaid图表代码',
+          suggestions: ['可以进一步优化图表结构', '添加更多详细信息', '调整图表样式'],
+          diagramType: detectedType || request.diagramType || 'flowchart',
+          metadata: {
+            model: this.model._llmType(),
+            provider: this.getProviderName()
+          }
+        };
       }
+
+      // 如果都没有找到，检查是否是纯Mermaid代码
+      if (response.includes('graph') || response.includes('flowchart') || response.includes('sequenceDiagram')) {
+        console.log('DiagramAgent: 检测到纯Mermaid代码');
+        const detectedType = this.detectDiagramType(response);
+        
+        return {
+          mermaidCode: response.trim(),
+          explanation: '已生成Mermaid图表代码',
+          suggestions: ['可以进一步优化图表结构', '添加更多详细信息', '调整图表样式'],
+          diagramType: detectedType || request.diagramType || 'flowchart',
+          metadata: {
+            model: this.model._llmType(),
+            provider: this.getProviderName()
+          }
+        };
+      }
+
+      throw new Error('无法识别响应格式');
 
     } catch (error) {
       console.error('DiagramAgent: 响应解析失败', error);
@@ -516,6 +558,35 @@ ${request.existingCode}
     });
 
     return schema.parse(parsed);
+  }
+
+  /**
+   * 自动检测图表类型
+   */
+  private detectDiagramType(code: string): string {
+    const trimmedCode = code.trim();
+    
+    // 检测各种图表类型
+    if (trimmedCode.includes('sequenceDiagram')) {
+      return 'sequence';
+    } else if (trimmedCode.includes('classDiagram')) {
+      return 'class';
+    } else if (trimmedCode.includes('erDiagram')) {
+      return 'er';
+    } else if (trimmedCode.includes('gitgraph')) {
+      return 'gitgraph';
+    } else if (trimmedCode.includes('gantt')) {
+      return 'gantt';
+    } else if (trimmedCode.includes('pie')) {
+      return 'pie';
+    } else if (trimmedCode.includes('journey')) {
+      return 'journey';
+    } else if (trimmedCode.includes('graph') || trimmedCode.includes('flowchart')) {
+      return 'flowchart';
+    }
+    
+    // 默认返回 flowchart
+    return 'flowchart';
   }
 
   /**

@@ -2,11 +2,13 @@
  * 架构图预览组件
  * 使用 Zustand 状态管理，实时渲染 Mermaid 图表，支持缩放和导出
  */
+import { useMemoizedFn } from 'ahooks';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Download, Maximize, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, Download, Maximize, RotateCcw, Sparkles, ZoomIn, ZoomOut } from 'lucide-react';
 import mermaid from 'mermaid';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
 import { useAppStore } from '../../../stores/appStore';
 import { useCurrentDiagram, usePreviewConfig } from '../../../stores/hooks';
 
@@ -25,13 +27,83 @@ const DiagramPreview: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<MermaidError | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isAiFixing, setIsAiFixing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderIdRef = useRef(0);
   const initializationRef = useRef(false);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const { optimizeDiagram } = useDiagramGenerator();
 
+  // AI Fix 功能
+  const handleAiFix = useMemoizedFn(async () => {
+    if (!error || isAiFixing) return;
+    
+    setIsAiFixing(true);
+    
+    try {
+      // 构建错误修复的提示 - 进一步优化版本
+      const errorTypeMap = {
+        'syntax': '语法错误',
+        'parse': '解析错误', 
+        'render': '渲染错误',
+        'unknown': '未知错误'
+      };
+      
+      const fixPrompt = `# Mermaid 图表错误修复任务
+
+你是一位专业的 Mermaid 图表语法专家。请分析并修复以下代码中的错误。
+
+## 🔍 错误分析
+**错误类型**: ${errorTypeMap[error.type || 'unknown']}
+**错误描述**: ${error.message}${error.line ? `\n**错误位置**: 第 ${error.line} 行${error.column ? `，第 ${error.column} 列` : ''}` : ''}
+
+## 📝 待修复代码
+\`\`\`mermaid
+${currentDiagram.mermaidCode.trim()}
+\`\`\`
+
+## ✅ 修复标准
+1. **保持语义**: 维持原图表的逻辑结构和表达意图
+2. **语法正确**: 严格遵循 Mermaid 官方语法规范
+3. **完整可用**: 确保输出代码可以直接渲染
+4. **预防性修复**: 识别并修复其他潜在的语法问题
+
+## 🎯 重点检查项
+- [ ] 图表类型声明是否唯一且正确 (graph/flowchart/sequence等)
+- [ ] 节点ID命名是否符合规范 (字母开头，无特殊字符)
+- [ ] 箭头和连接语法是否正确 (-->, ---, ==>等)
+- [ ] 括号、引号是否正确闭合 ([text], "label"等)
+- [ ] 特殊字符是否正确转义
+- [ ] 是否存在重复或冲突的语句
+
+## 📋 输出要求
+请直接返回修复后的完整 Mermaid 代码，格式如下：
+\`\`\`mermaid
+[修复后的代码]
+\`\`\`
+
+不要包含任何解释说明，只返回可直接使用的代码。`;
+      
+      console.log('AI Fix 进一步优化的 Prompt:', fixPrompt);
+      
+      // 调用图表生成器进行修复
+      await optimizeDiagram(fixPrompt);
+      
+      // 清除错误状态
+      setError(null);
+      
+      toast.success('🤖 AI 已修复代码错误！');
+      
+    } catch (fixError) {
+      console.error('AI Fix 失败:', fixError);
+      toast.error('AI 修复失败，请手动检查代码');
+    } finally {
+      setIsAiFixing(false);
+    }
+  });
+  
   // 解析错误信息
-  const parseError = useCallback((error: any): MermaidError => {
+  const parseError = useMemoizedFn((error: any): MermaidError => {
     const errorMessage = error?.str || error?.message || error?.toString() || '未知错误';
     
     // 尝试从错误信息中提取行号
@@ -66,7 +138,7 @@ const DiagramPreview: React.FC = () => {
       column,
       type
     };
-  }, []);
+  });
 
   // 初始化Mermaid - 只执行一次
   useEffect(() => {
@@ -87,7 +159,10 @@ const DiagramPreview: React.FC = () => {
         } else {
           console.error('Mermaid库加载失败，已达到最大重试次数');
           if (mounted) {
-            setError('图表渲染库加载失败，请刷新页面重试');
+            setError({
+              message: '图表渲染库加载失败，请刷新页面重试',
+              type: 'render'
+            });
           }
           return;
         }
@@ -155,7 +230,7 @@ const DiagramPreview: React.FC = () => {
   }, [parseError]); // 添加 parseError 依赖
 
   // 渲染图表的核心函数
-  const renderDiagram = useCallback(async () => {
+  const renderDiagram = useMemoizedFn(async () => {
     if (!isInitialized || !containerRef.current || !currentDiagram.mermaidCode.trim()) {
       return;
     }
@@ -274,105 +349,13 @@ const DiagramPreview: React.FC = () => {
       const parsedError = parseError(err);
       setError(parsedError);
       
-      // 显示错误信息
-      if (containerRef.current) {
-        const errorTypeIcons = {
-          'syntax': '🔍',
-          'parse': '📝',
-          'render': '🎨',
-          'unknown': '⚠️'
-        };
-        
-        const errorTypeNames = {
-          'syntax': '语法错误',
-          'parse': '解析错误',
-          'render': '渲染错误',
-          'unknown': '未知错误'
-        };
-        
-        const icon = errorTypeIcons[parsedError.type || 'unknown'];
-        const typeName = errorTypeNames[parsedError.type || 'unknown'];
-        
-        let locationInfo = '';
-        if (parsedError.line) {
-          locationInfo = `第 ${parsedError.line} 行`;
-          if (parsedError.column) {
-            locationInfo += `，第 ${parsedError.column} 列`;
-          }
-        }
-        
-        containerRef.current.innerHTML = `
-          <div style="
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100%; 
-            min-height: 300px;
-            color: #ef4444;
-            text-align: center;
-            padding: 20px;
-            background: #fef2f2;
-            border-radius: 8px;
-            margin: 20px;
-          ">
-            <div style="
-              width: 64px; 
-              height: 64px; 
-              border: 3px solid #ef4444; 
-              border-radius: 50%; 
-              display: flex; 
-              align-items: center; 
-              justify-content: center; 
-              margin-bottom: 20px;
-              font-size: 24px;
-              background: white;
-            ">
-              ${icon}
-            </div>
-            <h3 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 600; color: #dc2626;">${typeName}</h3>
-            ${locationInfo ? `<p style="margin: 0 0 12px 0; color: #7f1d1d; font-size: 14px; font-weight: 500;">${locationInfo}</p>` : ''}
-            <p style="margin: 0 0 16px 0; color: #6b7280; font-size: 14px; max-width: 400px; line-height: 1.5;">
-              请检查 Mermaid 语法是否正确
-            </p>
-            <details style="margin-top: 12px; max-width: 500px; text-align: left;">
-              <summary style="
-                cursor: pointer; 
-                color: #374151; 
-                font-size: 14px; 
-                font-weight: 500;
-                padding: 8px 12px;
-                background: #f3f4f6;
-                border-radius: 6px;
-                margin-bottom: 8px;
-              ">🔍 查看错误详情</summary>
-              <div style="
-                margin-top: 8px; 
-                padding: 12px; 
-                background: #1f2937; 
-                border-radius: 6px; 
-                font-size: 12px; 
-                overflow: auto;
-                color: #f3f4f6;
-                font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-                line-height: 1.4;
-                border: 1px solid #374151;
-              ">
-                <div style="color: #f87171; font-weight: 600; margin-bottom: 4px;">错误类型：${typeName}</div>
-                ${locationInfo ? `<div style="color: #60a5fa; margin-bottom: 8px;">位置：${locationInfo}</div>` : ''}
-                <div style="color: #d1d5db;">消息：</div>
-                <div style="color: #fde047; word-break: break-word; white-space: pre-wrap; margin-top: 4px;">${parsedError.message}</div>
-              </div>
-            </details>
-          </div>
-        `;
-      }
+
     } finally {
       if (currentRenderId === renderIdRef.current) {
         setIsLoading(false);
       }
     }
-  }, [currentDiagram.mermaidCode, previewConfig.scale, isInitialized, parseError]); // 添加所有依赖
+  });
 
   // 监听初始化完成和代码变化，进行渲染
   useEffect(() => {
@@ -503,31 +486,7 @@ const DiagramPreview: React.FC = () => {
           {isLoading && (
             <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">渲染中...</span>
           )}
-          {error && (
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1">
-                <AlertTriangle size={14} className="text-red-500" />
-                <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">
-                  {error.type === 'syntax' ? '语法错误' : 
-                   error.type === 'parse' ? '解析错误' : 
-                   error.type === 'render' ? '渲染错误' : '错误'}
-                  {error.line && ` (第${error.line}行)`}
-                </span>
-              </div>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  console.log('手动重试渲染');
-                  setError(null);
-                  renderDiagram();
-                }}
-                className="text-xs text-blue-600 hover:text-blue-700 underline"
-              >
-                重试
-              </motion.button>
-            </div>
-          )}
+          
         </div>
         
         <div className="flex items-center space-x-1">
@@ -612,6 +571,107 @@ const DiagramPreview: React.FC = () => {
                 在左侧输入 Mermaid 代码<br />
                 或使用 AI 生成架构图
               </p>
+            </div>
+          </div>
+        )}
+
+        {!isLoading && isInitialized && currentDiagram.mermaidCode.trim() && error && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center max-w-lg mx-auto p-8">
+              <div className="w-16 h-16 border-3 border-red-500 border-solid rounded-full flex items-center justify-center mx-auto mb-6 bg-white">
+                <AlertTriangle size={32} className="text-red-500" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2 text-red-600">
+                {error.type === 'syntax' ? '语法错误' : 
+                 error.type === 'parse' ? '解析错误' : 
+                 error.type === 'render' ? '渲染错误' : '错误'}
+              </h3>
+              {error.line && (
+                <p className="text-sm text-red-500 font-medium mb-4">
+                  第 {error.line} 行{error.column && `，第 ${error.column} 列`}
+                </p>
+              )}
+              <p className="text-gray-600 mb-6 leading-relaxed">
+                请检查 Mermaid 语法是否正确
+              </p>
+              <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+                <details>
+                  <summary className="cursor-pointer text-sm font-medium text-gray-700 mb-2">
+                    🔍 查看错误详情
+                  </summary>
+                  <div className="mt-2 p-3 bg-gray-900 rounded text-xs text-gray-100 font-mono overflow-auto">
+                    <div className="text-red-400 font-semibold mb-1">
+                      错误类型：{error.type === 'syntax' ? '语法错误' : 
+                               error.type === 'parse' ? '解析错误' : 
+                               error.type === 'render' ? '渲染错误' : '未知错误'}
+                    </div>
+                    {error.line && (
+                      <div className="text-blue-400 mb-2">
+                        位置：第 {error.line} 行{error.column && `，第 ${error.column} 列`}
+                      </div>
+                    )}
+                    <div className="text-gray-300">错误信息：</div>
+                    <div className="text-yellow-300 whitespace-pre-wrap break-words mt-1">
+                      {error.message}
+                    </div>
+                  </div>
+                </details>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleAiFix}
+                disabled={isAiFixing}
+                className={`
+                  relative px-6 py-3 rounded-xl font-medium text-sm transition-all duration-300 
+                  ${isAiFixing 
+                    ? 'bg-gradient-to-r from-purple-400 to-pink-400 text-white cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl'
+                  }
+                `}
+              >
+                {/* 背景光效 */}
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 hover:opacity-20 transition-opacity duration-300"></div>
+                
+                {/* 按钮内容 */}
+                <div className="relative flex items-center space-x-2">
+                  {isAiFixing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>AI 修复中...</span>
+                    </>
+                  ) : (
+                    <>
+                      <motion.div
+                        animate={{ rotate: [0, 360] }}
+                        transition={{ 
+                          duration: 2, 
+                          repeat: Infinity, 
+                          ease: "linear" 
+                        }}
+                      >
+                        <Sparkles size={16} className="text-white" />
+                      </motion.div>
+                      <span>AI Fix</span>
+                      <div className="text-xs opacity-75">✨</div>
+                    </>
+                  )}
+                </div>
+                
+                {/* 闪烁效果 */}
+                {!isAiFixing && (
+                  <motion.div
+                    className="absolute inset-0 rounded-xl bg-white"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0, 0.1, 0] }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  />
+                )}
+              </motion.button>
             </div>
           </div>
         )}
