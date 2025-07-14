@@ -13,7 +13,7 @@ import { z } from "zod";
 // 图表生成请求接口
 export interface DiagramGenerationRequest {
   description: string;
-  diagramType?: 'flowchart' | 'sequence' | 'class' | 'er' | 'gitgraph' | 'gantt' | 'pie' | 'journey';
+  diagramType?: 'flowchart' | 'sequence' | 'class' | 'state' | 'er' | 'journey' | 'gantt' | 'pie' | 'quadrant' | 'mindmap' | 'gitgraph' | 'kanban' | 'architecture' | 'packet';
   existingCode?: string;
   optimizationRequirements?: string;
 }
@@ -292,11 +292,17 @@ export class DiagramAgent {
 - flowchart: 流程图 (推荐用于业务流程、系统架构)
 - sequence: 时序图 (推荐用于交互流程、API调用)
 - class: 类图 (推荐用于系统设计、数据结构)
+- state: 状态图 (推荐用于对象生命周期、协议状态机)
 - er: 实体关系图 (推荐用于数据库设计)
-- gitgraph: Git分支图 (推荐用于版本管理流程)
+- journey: 用户旅程图 (推荐用于用户体验设计)
 - gantt: 甘特图 (推荐用于项目计划、时间安排)
 - pie: 饼图 (推荐用于数据统计、比例展示)
-- journey: 用户旅程图 (推荐用于用户体验设计)
+- quadrant: 四象限图 (推荐用于战略分析、优先级排序)
+- mindmap: 思维导图 (推荐用于头脑风暴、知识整理)
+- gitgraph: Git分支图 (推荐用于版本管理流程)
+- kanban: 看板图 (推荐用于任务管理、敏捷开发)
+- architecture: 架构图 (C4风格，推荐用于复杂系统架构展示)
+- packet: 数据包图 (推荐用于网络协议分析)
 
 请严格按照以下JSON格式返回：
 {

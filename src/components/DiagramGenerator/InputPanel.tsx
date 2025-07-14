@@ -130,10 +130,20 @@ const InputPanel: React.FC = () => {
               }}
               className="text-sm border-0 bg-gray-50 rounded-md px-3 py-1 focus:ring-1 focus:ring-blue-500"
             >
-              <option value="flowchart">流程图</option>
-              <option value="sequence">时序图</option>
-              <option value="class">类图</option>
-              <option value="er">ER图</option>
+              <option value="flowchart">🔄 流程图</option>
+              <option value="sequence">⏰ 时序图</option>
+              <option value="class">🏗️ 类图</option>
+              <option value="state">🚦 状态图</option>
+              <option value="er">🗄️ ER图</option>
+              <option value="journey">👤 旅程图</option>
+              <option value="gantt">📅 甘特图</option>
+              <option value="pie">🥧 饼图</option>
+              <option value="quadrant">🎯 四象限图</option>
+              <option value="mindmap">🧠 思维导图</option>
+              <option value="gitgraph">🌳 Git图</option>
+              <option value="kanban">📋 看板图</option>
+              <option value="architecture">🏛️ 架构图</option>
+              <option value="packet">📦 数据包图</option>
             </select>
           </div>
         </div>

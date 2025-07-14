@@ -8,7 +8,7 @@ export interface DiagramData {
   title: string;
   description: string;
   mermaidCode: string;
-  diagramType: 'flowchart' | 'sequence' | 'class' | 'er' | 'gitgraph' | 'gantt' | 'pie' | 'journey';
+  diagramType: 'flowchart' | 'sequence' | 'class' | 'state' | 'er' | 'journey' | 'gantt' | 'pie' | 'quadrant' | 'mindmap' | 'gitgraph' | 'kanban' | 'architecture' | 'packet';
   tags: string[];
   createdAt?: string;
   updatedAt?: string;
