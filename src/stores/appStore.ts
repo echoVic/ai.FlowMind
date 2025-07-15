@@ -41,7 +41,8 @@ interface AppState {
     minimap: { enabled: boolean };
   };
   previewConfig: {
-    theme: 'default';
+    theme: 'default' | 'base' | 'dark' | 'forest' | 'neutral' | 'null';
+    look: 'default' | 'handDrawn';
     scale: number;
     panZoom: boolean;
   };
@@ -154,6 +155,7 @@ export const useAppStore = create<AppStore>()(
     },
     previewConfig: {
       theme: 'default',
+      look: 'default',
       scale: 1,
       panZoom: true
     },

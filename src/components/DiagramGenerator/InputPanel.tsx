@@ -54,11 +54,12 @@ const InputPanel: React.FC = () => {
 
   // 默认模型选项（火山引擎模型）
   const defaultModelOptions = [
+    { value: 'ep-20250530171222-q42h8', label: '🌋 DeepSeek-V3'},
+    { value: 'ep-20250715105951-5rbzv', label: '🌋 Doubao-Seed-1.6-flash | 250615' },
     { value: 'ep-20250617131345-rshkp', label: '🌋 Doubao-Seed-1.6 | 250615' },
     { value: 'ep-20250612135125-br9k7', label: '🌋 Doubao-Seed-1.6-thinking | 250615' },
-    { value: 'ep-20250530171307-rrcc5', label: '🌋 DeepSeek-R1 | 250528' },
-    { value: 'ep-20250530171222-q42h8', label: '🌋 DeepSeek-V3'},
     { value: 'ep-20250417144747-rgffm', label: '🌋 Doubao-1.5-thinking-pro' },
+    { value: 'ep-20250530171307-rrcc5', label: '🌋 DeepSeek-R1 | 250528' },
   ];
 
   // 获取图标

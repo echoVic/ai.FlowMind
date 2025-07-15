@@ -4,7 +4,7 @@
  */
 import { useMemoizedFn } from 'ahooks';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Download, Maximize, RotateCcw, Sparkles, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, Download, Maximize, RotateCcw, Sparkles, ZoomIn, ZoomOut, Palette, ChevronDown, Brush } from 'lucide-react';
 import mermaid from 'mermaid';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -28,10 +28,14 @@ const DiagramPreview: React.FC = () => {
   const [error, setError] = useState<MermaidError | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isAiFixing, setIsAiFixing] = useState(false);
+  const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
+  const [isLookDropdownOpen, setIsLookDropdownOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderIdRef = useRef(0);
   const initializationRef = useRef(false);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const themeDropdownRef = useRef<HTMLDivElement>(null);
+  const lookDropdownRef = useRef<HTMLDivElement>(null);
   const { optimizeDiagram } = useDiagramGenerator();
 
   // AI Fix 功能
@@ -176,7 +180,7 @@ ${currentDiagram.mermaidCode.trim()}
         // 重置 mermaid 状态
         mermaid.initialize({
           startOnLoad: false,
-          theme: 'default',
+          theme: 'default', // 使用默认主题，通过配置块控制主题
           securityLevel: 'loose',
           fontFamily: 'system-ui, -apple-system, sans-serif',
           flowchart: {
@@ -227,7 +231,7 @@ ${currentDiagram.mermaidCode.trim()}
       mounted = false;
       clearTimeout(timer);
     };
-  }, [parseError]); // 添加 parseError 依赖
+  }, [parseError]); // 移除主题依赖，只在第一次初始化
 
   // 渲染图表的核心函数
   const renderDiagram = useMemoizedFn(async () => {
@@ -267,7 +271,27 @@ ${currentDiagram.mermaidCode.trim()}
         .replace(/\n?```\s*$/i, '')        // 移除结尾的 ```
         .trim();                           // 移除前后空白
 
-      console.log('DiagramPreview: 使用清理后的代码进行渲染');
+      // 如果是手绘外观模式，在代码前添加配置指令
+      if (previewConfig.look === 'handDrawn') {
+        cleanedCode = `---
+config:
+  theme: ${previewConfig.theme}
+  look: handDrawn
+  handDrawnSeed: 42
+---
+${cleanedCode}`;
+      } else {
+        cleanedCode = `---
+config:
+  theme: ${previewConfig.theme}
+---
+${cleanedCode}`;
+      }
+
+      console.log('DiagramPreview: 使用清理后的代码进行渲染', {
+        theme: previewConfig.theme,
+        look: previewConfig.look
+      });
 
       // 创建临时div用于验证语法
       const tempId = `mermaid-temp-${currentRenderId}`;
@@ -383,7 +407,7 @@ ${currentDiagram.mermaidCode.trim()}
         console.log('等待Mermaid初始化完成...');
       }
     }
-  }, [isInitialized, currentDiagram.mermaidCode, previewConfig.scale, renderDiagram]);
+  }, [isInitialized, currentDiagram.mermaidCode, previewConfig.scale, previewConfig.theme, previewConfig.look, renderDiagram]);
 
   // 监听容器尺寸变化，确保在布局变化时重新渲染
   useEffect(() => {
@@ -469,6 +493,46 @@ ${currentDiagram.mermaidCode.trim()}
     }
   };
 
+  const handleThemeChange = (theme: 'default' | 'base' | 'dark' | 'forest' | 'neutral' | 'null') => {
+    setPreviewConfig({
+      ...previewConfig,
+      theme: theme
+    });
+    
+    setIsThemeDropdownOpen(false);
+    toast.success(`已切换到${theme}主题`);
+  };
+
+  const handleLookChange = (look: 'default' | 'handDrawn') => {
+    setPreviewConfig({
+      ...previewConfig,
+      look: look
+    });
+    
+    setIsLookDropdownOpen(false);
+    toast.success(`已切换到${look === 'handDrawn' ? '手绘' : '默认'}外观`);
+  };
+
+  // 点击外部关闭下拉框
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (themeDropdownRef.current && !themeDropdownRef.current.contains(event.target as Node)) {
+        setIsThemeDropdownOpen(false);
+      }
+      if (lookDropdownRef.current && !lookDropdownRef.current.contains(event.target as Node)) {
+        setIsLookDropdownOpen(false);
+      }
+    };
+
+    if (isThemeDropdownOpen || isLookDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isThemeDropdownOpen, isLookDropdownOpen]);
+
   return (
     <div className="h-full flex flex-col bg-white">
       {/* 标题栏 */}
@@ -486,10 +550,112 @@ ${currentDiagram.mermaidCode.trim()}
           {isLoading && (
             <span className="text-xs text-blue-500 bg-blue-50 px-2 py-1 rounded">渲染中...</span>
           )}
+          {isInitialized && !isLoading && (
+            <div className="flex items-center space-x-2">
+              <span className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600">
+                {previewConfig.theme}主题
+              </span>
+              {previewConfig.look === 'handDrawn' && (
+                <span className="text-xs px-2 py-1 rounded bg-purple-50 text-purple-600">
+                  手绘外观
+                </span>
+              )}
+            </div>
+          )}
           
         </div>
         
         <div className="flex items-center space-x-1">
+          {/* 主题选择下拉框 */}
+          <div ref={themeDropdownRef} className="relative">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsThemeDropdownOpen(!isThemeDropdownOpen)}
+              className="flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-100 border border-gray-200 transition-colors bg-white text-gray-600"
+              title="选择主题"
+              disabled={!isInitialized || isLoading}
+            >
+              <Palette size={16} />
+              <span className="text-sm">{previewConfig.theme}</span>
+              <ChevronDown size={14} className={`transition-transform ${isThemeDropdownOpen ? 'rotate-180' : ''}`} />
+            </motion.button>
+            
+            {/* 主题下拉菜单 */}
+            {isThemeDropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                transition={{ duration: 0.1 }}
+                className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[120px]"
+              >
+                {(['default', 'base', 'dark', 'forest', 'neutral', 'null'] as const).map((theme) => (
+                  <button
+                    key={theme}
+                    onClick={() => handleThemeChange(theme)}
+                    className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors flex items-center space-x-2 ${
+                      previewConfig.theme === theme ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                    }`}
+                  >
+                    <Palette size={12} />
+                    <span>{theme}</span>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </div>
+
+          {/* 外观选择下拉框 */}
+          <div ref={lookDropdownRef} className="relative">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsLookDropdownOpen(!isLookDropdownOpen)}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-100 border border-gray-200 transition-colors ${
+                previewConfig.look === 'handDrawn' 
+                  ? 'bg-purple-50 text-purple-600 border-purple-200' 
+                  : 'bg-white text-gray-600'
+              }`}
+              title="选择外观"
+              disabled={!isInitialized || isLoading}
+            >
+              <Brush size={16} />
+              <span className="text-sm">{previewConfig.look === 'handDrawn' ? '手绘' : '默认'}</span>
+              <ChevronDown size={14} className={`transition-transform ${isLookDropdownOpen ? 'rotate-180' : ''}`} />
+            </motion.button>
+            
+            {/* 外观下拉菜单 */}
+            {isLookDropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                transition={{ duration: 0.1 }}
+                className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[120px]"
+              >
+                <button
+                  onClick={() => handleLookChange('default')}
+                  className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors flex items-center space-x-2 ${
+                    previewConfig.look === 'default' ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                  }`}
+                >
+                  <div className="w-3 h-3 border border-gray-300 rounded bg-white"></div>
+                  <span>默认外观</span>
+                </button>
+                <button
+                  onClick={() => handleLookChange('handDrawn')}
+                  className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors flex items-center space-x-2 ${
+                    previewConfig.look === 'handDrawn' ? 'bg-purple-50 text-purple-700' : 'text-gray-700'
+                  }`}
+                >
+                  <Brush size={12} />
+                  <span>手绘外观</span>
+                </button>
+              </motion.div>
+            )}
+          </div>
+          
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
