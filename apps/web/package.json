@@ -1,0 +1,45 @@
+{
+  "name": "web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@codemirror/lint": "^6.8.5",
+    "@langchain/anthropic": "^0.3.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/openai": "^0.3.0",
+    "@uiw/codemirror-theme-vscode": "^4.23.14",
+    "@uiw/react-codemirror": "^4.23.14",
+    "@vercel/analytics": "^1.5.0",
+    "ahooks": "^3.9.0",
+    "codemirror-lang-mermaid": "^0.5.0",
+    "framer-motion": "11.11.1",
+    "lucide-react": "0.294.0",
+    "mermaid": "^11.8.1",
+    "monaco-editor": "^0.44.0",
+    "next": "^14.2.0",
+    "openai": "^4.67.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
+    "recharts": "^2.12.7",
+    "zod": "^3.22.0",
+    "zustand": "^5.0.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.75",
+    "@types/react-dom": "^18.2.24",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.2.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.0.0"
+  }
+}
