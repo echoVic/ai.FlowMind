@@ -1,7 +1,8 @@
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { MermaidValidator } from './validator.js';
 import { TemplateManager } from './templates.js';
-import { ValidateMermaidInput, GetTemplatesInput } from './types.js';
+import { DiagramOptimizer } from './optimizer/index.js';
+import { ValidateMermaidInput, GetTemplatesInput, OptimizeDiagramInput } from './types.js';
 
 /**
  * 处理 validate_mermaid 工具调用
@@ -150,6 +151,153 @@ export async function handleGetDiagramTemplates(input: GetTemplatesInput): Promi
 错误信息: ${error instanceof Error ? error.message : String(error)}
 
 请检查输入参数是否正确。`
+      }]
+    };
+  }
+}
+
+/**
+ * 处理 optimize_diagram 工具调用
+ */
+export async function handleOptimizeDiagram(input: OptimizeDiagramInput): Promise<CallToolResult> {
+  try {
+    const optimizer = new DiagramOptimizer();
+    const result = optimizer.optimize(input);
+
+    const content = [
+      `🔧 **图表优化完成**`,
+      '',
+      '**优化统计:**',
+      `- 原始代码行数: ${result.originalCode.split('\n').length}`,
+      `- 优化后代码行数: ${result.optimizedCode.split('\n').length}`,
+      `- 发现问题: ${result.suggestions.length} 个`,
+      `- 应用优化: ${result.appliedOptimizations.length} 项`,
+      '',
+      '**质量指标:**',
+      `- 📖 可读性: ${result.metrics.readabilityScore}/100`,
+      `- 📦 紧凑性: ${result.metrics.compactnessScore}/100`,
+      `- 🎨 美观性: ${result.metrics.aestheticsScore}/100`,
+      `- ♿ 可访问性: ${result.metrics.accessibilityScore}/100`,
+      ''
+    ];
+
+    if (result.suggestions.length > 0) {
+      content.push('## 🔍 优化建议');
+      content.push('');
+      
+      result.suggestions.forEach((suggestion, index) => {
+        const impactEmoji = suggestion.impact === 'high' ? '🔴' : suggestion.impact === 'medium' ? '🟡' : '🟢';
+        content.push(`### ${index + 1}. ${suggestion.title} ${impactEmoji}`);
+        content.push(`**类型:** ${suggestion.type}`);
+        content.push(`**影响:** ${suggestion.impact}`);
+        content.push(`**描述:** ${suggestion.description}`);
+        content.push(`**原因:** ${suggestion.reasoning}`);
+        
+        if (suggestion.beforeCode && suggestion.afterCode) {
+          content.push('');
+          content.push('**修改前:**');
+          content.push('```mermaid');
+          content.push(suggestion.beforeCode);
+          content.push('```');
+          
+          content.push('**修改后:**');
+          content.push('```mermaid');
+          content.push(suggestion.afterCode);
+          content.push('```');
+        }
+        
+        content.push('');
+      });
+    }
+
+    content.push('## 📋 优化后的代码');
+    content.push('');
+    content.push('```mermaid');
+    content.push(result.optimizedCode);
+    content.push('```');
+
+    return {
+      content: [{
+        type: 'text',
+        text: content.join('\n')
+      }]
+    };
+  } catch (error) {
+    return {
+      content: [{
+        type: 'text',
+        text: `❌ **图表优化失败**
+
+错误信息: ${error instanceof Error ? error.message : String(error)}
+
+请检查输入的 Mermaid 代码是否有效。`
+      }]
+    };
+  }
+}
+
+/**
+ * 处理 convert_diagram_format 工具调用
+ */
+export async function handleConvertDiagramFormat(input: any): Promise<CallToolResult> {
+  try {
+    const optimizer = new DiagramOptimizer();
+    const result = optimizer.convertFormat(
+      input.mermaidCode, 
+      input.targetFormat || 'auto', 
+      input.optimizeStructure !== false
+    );
+
+    const content = [
+      `🔄 **图表格式转换完成**`,
+      '',
+      '**转换信息:**',
+      `- 目标格式: ${input.targetFormat || 'auto (自动选择)'}`,
+      `- 结构优化: ${input.optimizeStructure !== false ? '启用' : '禁用'}`,
+      `- 原始代码行数: ${result.originalCode.split('\n').length}`,
+      `- 转换后代码行数: ${result.optimizedCode.split('\n').length}`,
+      '',
+      '**质量指标:**',
+      `- 📖 可读性: ${result.metrics.readabilityScore}/100`,
+      `- 📦 紧凑性: ${result.metrics.compactnessScore}/100`,
+      `- 🎨 美观性: ${result.metrics.aestheticsScore}/100`,
+      `- ♿ 可访问性: ${result.metrics.accessibilityScore}/100`,
+      ''
+    ];
+
+    if (result.suggestions.length > 0) {
+      content.push('## 💡 转换说明');
+      content.push('');
+      
+      result.suggestions.forEach((suggestion, index) => {
+        content.push(`### ${index + 1}. ${suggestion.title}`);
+        content.push(`**描述:** ${suggestion.description}`);
+        content.push(`**原因:** ${suggestion.reasoning}`);
+        content.push('');
+      });
+    }
+
+    content.push('## 📋 转换后的代码');
+    content.push('');
+    content.push('```mermaid');
+    content.push(result.optimizedCode);
+    content.push('```');
+
+    return {
+      content: [{
+        type: 'text',
+        text: content.join('\n')
+      }]
+    };
+  } catch (error) {
+    return {
+      content: [{
+        type: 'text',
+        text: `❌ **格式转换失败**
+
+错误信息: ${error instanceof Error ? error.message : String(error)}
+
+请检查输入的 Mermaid 代码和目标格式是否有效。`
       }]
     };
   }

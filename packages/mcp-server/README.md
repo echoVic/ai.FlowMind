@@ -1,47 +1,56 @@
 # @flowmind/mcp-server
 
-A Model Context Protocol (MCP) server that provides Mermaid diagram generation and validation tools for AI assistants.
+A Model Context Protocol (MCP) server that provides Mermaid diagram generation, validation, and optimization tools for AI assistants.
 
 ## Features
 
-### Phase 1 (Current)
-- ✅ **Hybrid Mermaid Validation**: Combines official parser with rule-based validation
-  - Uses `@mermaid-js/parser` for supported diagrams (pie, gitGraph, architecture, etc.)
-  - Uses intelligent rule-based validation for common diagrams (flowchart, sequence, etc.)
-- ✅ **Template Library**: Access to pre-built diagram templates for different use cases
-- ✅ **Error Suggestions**: Get actionable suggestions for fixing syntax errors
+✅ **Mermaid Validation** - Hybrid validation using official parser + rule-based checks  
+✅ **Diagram Optimization** - Auto-improve layout, readability, and accessibility  
+✅ **Format Conversion** - Convert between flowchart, sequence, class, ER, and other formats  
+✅ **Template Library** - 20+ professional templates for various use cases  
+✅ **Error Suggestions** - Actionable recommendations for syntax fixes
 
-### Upcoming Phases
-- 🔄 **Diagram Optimization**: Automatically improve diagram layouts and readability
-- 🔄 **Format Conversion**: Convert between different diagram formats
-- 🔄 **Advanced Templates**: More specialized templates for specific domains
+## Quick Start
 
-## Installation
+### Installation
 
 ```bash
-npm install @flowmind/mcp-server
-```
-
-## Usage
-
-### As MCP Server
-
-```bash
-# Start the MCP server
-npx mcp-mermaid
-
-# Or install globally
 npm install -g @flowmind/mcp-server
-mcp-mermaid
 ```
 
-### Available Tools
+### MCP Configuration
 
-#### 1. validate_mermaid
+**Claude Code** (`~/.config/claude-code/mcp_servers.json`):
+```json
+{
+  "mcpServers": {
+    "flowmind-mcp": {
+      "command": "npx",
+      "args": ["@flowmind/mcp-server"],
+      "description": "Mermaid diagram tools"
+    }
+  }
+}
+```
 
-Validates Mermaid diagram syntax using hybrid validation strategy:
-- **Official Parser**: For pie, gitGraph, architecture, info, packet, radar, treemap
-- **Rule-based**: For flowchart, sequence, class, er, gantt, journey diagrams
+**Cursor** (settings):
+```json
+{
+  "mcp": {
+    "servers": {
+      "flowmind-mcp": {
+        "command": "npx",
+        "args": ["@flowmind/mcp-server"]
+      }
+    }
+  }
+}
+```
+
+## Available Tools
+
+### 1. validate_mermaid
+Validates Mermaid syntax and provides fixes.
 
 ```json
 {
@@ -53,115 +62,158 @@ Validates Mermaid diagram syntax using hybrid validation strategy:
 }
 ```
 
-**Response includes parser information:**
-```
-✅ Mermaid 语法验证通过
-使用解析器: @mermaid-js/parser
-图表类型: pie
-```
-
-#### 2. get_diagram_templates
-
-Retrieves pre-built diagram templates based on criteria.
+### 2. get_diagram_templates
+Get pre-built templates by type, use case, and complexity.
 
 ```json
 {
   "name": "get_diagram_templates",
   "arguments": {
     "diagramType": "flowchart",
-    "useCase": "business-process",
-    "complexity": "simple"
+    "useCase": "software-architecture", 
+    "complexity": "medium"
   }
 }
 ```
 
-### Supported Diagram Types
+### 3. optimize_diagram ✨
+Optimize diagram layout, readability, and accessibility.
 
-- **flowchart**: Business processes, system flows
-- **sequence**: Interaction diagrams, API calls
-- **class**: Object-oriented design, UML
-- **er**: Database entity relationships
-- **gantt**: Project timelines, planning
-- **pie**: Data statistics, distributions
-- **journey**: User experience flows
-- **gitgraph**: Version control workflows
-- **mindmap**: Brainstorming, concept mapping
-- **timeline**: Historical events, roadmaps
+```json
+{
+  "name": "optimize_diagram",
+  "arguments": {
+    "mermaidCode": "flowchart TD\n    a --> b --> c",
+    "goals": ["readability", "accessibility"],
+    "maxSuggestions": 5
+  }
+}
+```
 
-### Use Cases
+**Optimization Goals:**
+- `readability` - Improve naming, labels, structure
+- `compactness` - Reduce redundancy, optimize layout  
+- `aesthetics` - Visual styling suggestions
+- `accessibility` - Color contrast, descriptions
 
-- **software-architecture**: System design, component diagrams
-- **business-process**: Workflow, decision trees
-- **database-design**: ER diagrams, schema design
-- **project-management**: Gantt charts, timelines
-- **general**: Generic templates for common scenarios
+### 4. convert_diagram_format ✨
+Convert between diagram formats with structure optimization.
+
+```json
+{
+  "name": "convert_diagram_format",
+  "arguments": {
+    "mermaidCode": "flowchart TD\n    A --> B",
+    "targetFormat": "sequence",
+    "optimizeStructure": true
+  }
+}
+```
+
+**Supported Formats:** `flowchart`, `sequence`, `class`, `er`, `gantt`, `pie`, `journey`, `gitgraph`, `mindmap`, `auto`
+
+## Usage Examples
+
+### AI Workflow Example
+```
+User: "Create an optimized e-commerce system architecture diagram"
+
+AI Process:
+1. get_diagram_templates → Find architecture templates
+2. validate_mermaid → Check generated syntax  
+3. optimize_diagram → Improve readability
+4. Result: Professional, optimized diagram with quality metrics
+```
+
+### Template Exploration
+```
+User: "Show me microservices templates"
+
+AI: Uses get_diagram_templates with:
+- diagramType: "flowchart"
+- useCase: "software-architecture" 
+- complexity: "complex"
+
+Returns: Microservices, CI/CD, distributed systems templates
+```
+
+### Format Conversion
+```
+User: "Convert this flowchart to a sequence diagram"
+
+AI: Uses convert_diagram_format to transform structure
+while preserving semantic meaning
+```
+
+## Diagram Types & Use Cases
+
+| Type | Best For |
+|------|----------|
+| `flowchart` | Business processes, system flows |
+| `sequence` | API interactions, user flows |
+| `class` | Object-oriented design, UML |
+| `er` | Database schema, entity relationships |
+| `gantt` | Project timelines, planning |
+| `journey` | User experience mapping |
+
+## Template Categories
+
+- **Software Architecture** - Microservices, CI/CD, distributed systems
+- **Business Process** - Workflows, decision trees, user journeys  
+- **Database Design** - ER diagrams, schema design
+- **Project Management** - Gantt charts, timelines
+
+## AI Prompt Examples
+
+**Effective prompts for AI assistants:**
+
+```
+🎯 "Create a [type] diagram for [use case], validate and optimize for [goals]"
+
+🔧 "Review this diagram and suggest accessibility improvements"
+
+📊 "Find templates for microservices architecture and customize for e-commerce"
+
+🔄 "Convert my flowchart to sequence diagram and optimize readability"
+```
 
 ## Development
 
 ```bash
-# Install dependencies
+# Setup
 npm install
-
-# Build the project
 npm run build
 
-# Run tests
+# Testing  
 npm test
+npm run test:watch
 
-# Watch mode for development
+# Development
 npm run dev
 ```
 
-## Testing
+## Troubleshooting
 
+**MCP Server Not Found:**
 ```bash
-# Run all tests
-npm test
+# Verify installation
+npm list -g @flowmind/mcp-server
 
-# Run tests in watch mode
-npm run test:watch
-
-# Run specific test file
-npm test validator.test.ts
-```
-
-## Integration Examples
-
-### Claude Code
-
-```bash
-# Claude Code will automatically detect and use the MCP server
-# when it's configured in your MCP settings
-```
-
-### Cursor
-
-```bash
-# Add to your Cursor MCP configuration
+# Use full path if needed
 {
-  "mcpServers": {
-    "mermaid": {
-      "command": "mcp-mermaid"
-    }
-  }
+  "command": "node",
+  "args": ["/full/path/to/@flowmind/mcp-server/dist/index.js"]
 }
 ```
 
-## Error Handling
+**Tools Not Available:**
+```bash
+# Check MCP server logs
+npx @flowmind/mcp-server --verbose
 
-The MCP server provides comprehensive error handling:
-
-- **Validation Errors**: Detailed syntax error messages with line numbers
-- **Suggestion System**: Actionable recommendations for fixing common issues
-- **Graceful Degradation**: Fallback responses for edge cases
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for your changes
-4. Run the test suite
-5. Submit a pull request
+# Verify JSON syntax
+cat ~/.config/claude-code/mcp_servers.json | jq .
+```
 
 ## License
 

@@ -8,7 +8,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { mcpTools, validateInput } from './tools.js';
-import { handleValidateMermaid, handleGetDiagramTemplates } from './handlers.js';
+import { handleValidateMermaid, handleGetDiagramTemplates, handleOptimizeDiagram, handleConvertDiagramFormat } from './handlers.js';
 
 /**
  * MCP Mermaid 服务器
@@ -59,6 +59,12 @@ class MermaidMCPServer {
           
           case 'get_diagram_templates':
             return await handleGetDiagramTemplates(validatedArgs);
+          
+          case 'optimize_diagram':
+            return await handleOptimizeDiagram(validatedArgs);
+          
+          case 'convert_diagram_format':
+            return await handleConvertDiagramFormat(validatedArgs);
           
           default:
             throw new Error(`Unknown tool: ${name}`);

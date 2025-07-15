@@ -21,7 +21,19 @@
       "Bash(timeout 10 pnpm dev)",
       "Bash(pnpm install:*)",
       "Bash(pnpm run:*)",
-      "WebFetch(domain:mermaid.js.org)"
+      "WebFetch(domain:mermaid.js.org)",
+      "Bash(git worktree:*)",
+      "Bash(true)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(chmod:*)",
+      "Bash(node test-mcp.js)",
+      "Bash(node:*)",
+      "Bash(npm test)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   }

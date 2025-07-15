@@ -1,5 +1,5 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { ValidateMermaidInputSchema, GetTemplatesInputSchema } from './types.js';
+import { ValidateMermaidInputSchema, GetTemplatesInputSchema, OptimizeDiagramInputSchema } from './types.js';
 
 /**
  * MCP 工具定义
@@ -86,6 +86,88 @@ export const mcpTools: Tool[] = [
         }
       }
     }
+  },
+  {
+    name: 'optimize_diagram',
+    description: `优化 Mermaid 图表的布局和可读性。
+
+这个工具提供：
+- 自动优化图表布局和结构
+- 提供可读性改进建议
+- 分析图表复杂度并给出优化方案
+- 支持多种优化目标（可读性、紧凑性、美观性、可访问性）
+
+使用场景：
+- 改进 AI 生成的图表质量
+- 优化复杂图表的可读性
+- 提供图表改进建议`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mermaidCode: {
+          type: 'string',
+          description: '要优化的 Mermaid 图表代码'
+        },
+        goals: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['readability', 'compactness', 'aesthetics', 'accessibility']
+          },
+          description: '优化目标（可选，默认为 readability）',
+          default: ['readability']
+        },
+        preserveSemantics: {
+          type: 'boolean',
+          description: '是否保持语义不变（可选，默认 true）',
+          default: true
+        },
+        maxSuggestions: {
+          type: 'number',
+          description: '最大建议数量（可选，默认 5）',
+          default: 5,
+          minimum: 1,
+          maximum: 10
+        }
+      },
+      required: ['mermaidCode']
+    }
+  },
+  {
+    name: 'convert_diagram_format',
+    description: `转换 Mermaid 图表格式或优化现有格式。
+
+这个工具提供：
+- 转换不同的 Mermaid 图表类型
+- 优化图表语法结构
+- 标准化图表格式
+- 提供格式转换建议
+
+使用场景：
+- 将简单流程图转换为更合适的图表类型
+- 优化图表语法结构
+- 标准化图表格式`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mermaidCode: {
+          type: 'string',
+          description: '要转换的 Mermaid 图表代码'
+        },
+        targetFormat: {
+          type: 'string',
+          enum: ['flowchart', 'sequence', 'class', 'er', 'gantt', 'pie', 'journey', 'gitgraph', 'auto'],
+          description: '目标格式（可选，auto 为自动选择）',
+          default: 'auto'
+        },
+        optimizeStructure: {
+          type: 'boolean',
+          description: '是否优化结构（可选，默认 true）',
+          default: true
+        }
+      },
+      required: ['mermaidCode']
+    }
   }
 ];
 
@@ -98,6 +180,10 @@ export function validateInput(toolName: string, args: unknown) {
       return ValidateMermaidInputSchema.parse(args);
     case 'get_diagram_templates':
       return GetTemplatesInputSchema.parse(args);
+    case 'optimize_diagram':
+      return OptimizeDiagramInputSchema.parse(args);
+    case 'convert_diagram_format':
+      return OptimizeDiagramInputSchema.parse(args); // 复用相同的输入验证
     default:
       throw new Error(`Unknown tool: ${toolName}`);
   }
