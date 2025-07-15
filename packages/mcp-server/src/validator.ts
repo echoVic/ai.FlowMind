@@ -1,7 +1,11 @@
+import { parse, MermaidParseError } from '@mermaid-js/parser';
 import { ValidationResult } from './types.js';
 
 /**
  * Mermaid 语法验证器
+ * 使用混合验证策略：
+ * 1. 对于支持的图表类型，使用 @mermaid-js/parser 进行精确解析
+ * 2. 对于不支持的图表类型，使用基于规则的验证
  */
 export class MermaidValidator {
   private static instance: MermaidValidator;
@@ -31,11 +35,132 @@ export class MermaidValidator {
       // 清理代码
       const cleanedCode = this.cleanCode(code);
       
-      // 使用基于规则的验证方法
-      return this.validateWithRules(cleanedCode, strict);
+      // 检测图表类型
+      const diagramType = this.detectDiagramType(cleanedCode);
+      
+      // 根据图表类型选择验证方法
+      if (this.isParserSupported(diagramType)) {
+        return await this.validateWithParser(cleanedCode, diagramType, strict);
+      } else {
+        return this.validateWithRules(cleanedCode, strict);
+      }
     } catch (error: any) {
       return this.parseError(error, code, strict);
     }
+  }
+
+  /**
+   * 检测图表类型
+   */
+  private detectDiagramType(code: string): string {
+    const lines = code.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    if (lines.length === 0) return 'unknown';
+
+    const firstLine = lines[0].toLowerCase();
+    
+    // 按优先级匹配图表类型
+    if (firstLine.includes('pie')) return 'pie';
+    if (firstLine.includes('info')) return 'info';
+    if (firstLine.includes('packet')) return 'packet';
+    if (firstLine.includes('architecture')) return 'architecture';
+    if (firstLine.includes('gitgraph')) return 'gitGraph';
+    if (firstLine.includes('radar')) return 'radar';
+    if (firstLine.includes('treemap')) return 'treemap';
+    
+    // 不支持的类型
+    if (firstLine.includes('flowchart') || firstLine.includes('graph')) return 'flowchart';
+    if (firstLine.includes('sequencediagram')) return 'sequence';
+    if (firstLine.includes('classdiagram')) return 'class';
+    if (firstLine.includes('erdiagram')) return 'er';
+    if (firstLine.includes('gantt')) return 'gantt';
+    if (firstLine.includes('journey')) return 'journey';
+    
+    return 'unknown';
+  }
+
+  /**
+   * 检查是否支持使用 @mermaid-js/parser 解析
+   */
+  private isParserSupported(diagramType: string): boolean {
+    return ['pie', 'info', 'packet', 'architecture', 'gitGraph', 'radar', 'treemap'].includes(diagramType);
+  }
+
+  /**
+   * 使用 @mermaid-js/parser 进行验证
+   */
+  private async validateWithParser(code: string, diagramType: string, strict: boolean): Promise<ValidationResult> {
+    try {
+      // 使用官方解析器进行验证
+      const ast = await parse(diagramType as any, code);
+      
+      return {
+        valid: true,
+        // 可选：返回解析后的 AST 信息
+        metadata: {
+          parser: '@mermaid-js/parser',
+          diagramType,
+          hasAst: true
+        }
+      };
+    } catch (error) {
+      if (error instanceof MermaidParseError) {
+        return {
+          valid: false,
+          error: error.message,
+          line: this.extractLineFromParseError(error),
+          suggestions: this.generateParserSuggestions(error, diagramType)
+        };
+      } else {
+        return {
+          valid: false,
+          error: `解析失败: ${error.message}`,
+          suggestions: ['检查图表语法是否正确']
+        };
+      }
+    }
+  }
+
+  /**
+   * 从解析错误中提取行号
+   */
+  private extractLineFromParseError(error: MermaidParseError): number | undefined {
+    if (error.result.lexerErrors && error.result.lexerErrors.length > 0) {
+      return error.result.lexerErrors[0].line;
+    }
+    return undefined;
+  }
+
+  /**
+   * 为解析器错误生成建议
+   */
+  private generateParserSuggestions(error: MermaidParseError, diagramType: string): string[] {
+    const suggestions: string[] = [];
+    
+    // 基于错误类型生成建议
+    if (error.result.lexerErrors && error.result.lexerErrors.length > 0) {
+      suggestions.push('检查是否有拼写错误或无效字符');
+    }
+    
+    if (error.result.parserErrors && error.result.parserErrors.length > 0) {
+      suggestions.push(`检查 ${diagramType} 图表的语法规则`);
+    }
+    
+    // 基于图表类型的具体建议
+    switch (diagramType) {
+      case 'pie':
+        suggestions.push('饼图格式: pie title 标题\\n    "标签" : 数值');
+        break;
+      case 'gitGraph':
+        suggestions.push('Git图格式: gitGraph\\n    commit\\n    branch feature');
+        break;
+      case 'architecture':
+        suggestions.push('架构图格式: architecture-beta\\n    group api\\n    service api');
+        break;
+      default:
+        suggestions.push(`请参考 ${diagramType} 图表的官方语法文档`);
+    }
+    
+    return suggestions;
   }
 
   /**

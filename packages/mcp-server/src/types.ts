@@ -9,6 +9,11 @@ export interface ValidationResult {
   line?: number;
   column?: number;
   suggestions?: string[];
+  metadata?: {
+    parser?: string;
+    diagramType?: string;
+    hasAst?: boolean;
+  };
 }
 
 /**

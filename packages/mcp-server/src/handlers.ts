@@ -12,13 +12,17 @@ export async function handleValidateMermaid(input: ValidateMermaidInput): Promis
     const result = await validator.validate(input.mermaidCode, input.strict);
 
     if (result.valid) {
+      const parserInfo = result.metadata?.parser ? `
+使用解析器: ${result.metadata.parser}
+图表类型: ${result.metadata.diagramType}` : '';
+      
       return {
         content: [{
           type: 'text',
           text: `✅ **Mermaid 语法验证通过**
 
 代码长度: ${input.mermaidCode.length} 字符
-验证模式: ${input.strict ? '严格' : '标准'}
+验证模式: ${input.strict ? '严格' : '标准'}${parserInfo}
 
 您的 Mermaid 代码语法正确，可以正常渲染。`
         }]

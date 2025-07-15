@@ -5,7 +5,9 @@ A Model Context Protocol (MCP) server that provides Mermaid diagram generation a
 ## Features
 
 ### Phase 1 (Current)
-- ✅ **Mermaid Syntax Validation**: Validate Mermaid code syntax and get detailed error messages
+- ✅ **Hybrid Mermaid Validation**: Combines official parser with rule-based validation
+  - Uses `@mermaid-js/parser` for supported diagrams (pie, gitGraph, architecture, etc.)
+  - Uses intelligent rule-based validation for common diagrams (flowchart, sequence, etc.)
 - ✅ **Template Library**: Access to pre-built diagram templates for different use cases
 - ✅ **Error Suggestions**: Get actionable suggestions for fixing syntax errors
 
@@ -37,7 +39,9 @@ mcp-mermaid
 
 #### 1. validate_mermaid
 
-Validates Mermaid diagram syntax and provides error details with suggestions.
+Validates Mermaid diagram syntax using hybrid validation strategy:
+- **Official Parser**: For pie, gitGraph, architecture, info, packet, radar, treemap
+- **Rule-based**: For flowchart, sequence, class, er, gantt, journey diagrams
 
 ```json
 {
@@ -47,6 +51,13 @@ Validates Mermaid diagram syntax and provides error details with suggestions.
     "strict": false
   }
 }
+```
+
+**Response includes parser information:**
+```
+✅ Mermaid 语法验证通过
+使用解析器: @mermaid-js/parser
+图表类型: pie
 ```
 
 #### 2. get_diagram_templates

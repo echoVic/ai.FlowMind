@@ -5,7 +5,7 @@ describe('MermaidValidator', () => {
   const validator = MermaidValidator.getInstance();
 
   describe('validate', () => {
-    it('应该验证有效的流程图代码', async () => {
+    it('应该验证有效的流程图代码（基于规则）', async () => {
       const code = `flowchart TD
         A[开始] --> B[结束]`;
       
@@ -14,7 +14,7 @@ describe('MermaidValidator', () => {
       expect(result.error).toBeUndefined();
     });
 
-    it('应该验证有效的序列图代码', async () => {
+    it('应该验证有效的序列图代码（基于规则）', async () => {
       const code = `sequenceDiagram
         participant A
         participant B
@@ -22,6 +22,17 @@ describe('MermaidValidator', () => {
       
       const result = await validator.validate(code);
       expect(result.valid).toBe(true);
+    });
+
+    it('应该验证有效的饼图代码（使用解析器）', async () => {
+      const code = `pie title 测试饼图
+        "A" : 50
+        "B" : 30`;
+      
+      const result = await validator.validate(code);
+      expect(result.valid).toBe(true);
+      expect(result.metadata?.parser).toBe('@mermaid-js/parser');
+      expect(result.metadata?.diagramType).toBe('pie');
     });
 
     it('应该拒绝空代码', async () => {
@@ -65,6 +76,17 @@ flowchart TD
       const result = await validator.validate(code);
       expect(result.valid).toBe(false);
       expect(result.suggestions).toContain('使用 "-->" 而不是 "→" 来表示箭头');
+    });
+
+    it('应该使用解析器验证错误的饼图代码', async () => {
+      const code = `pie title 测试
+        invalid syntax`;
+      
+      const result = await validator.validate(code);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBeDefined();
+      expect(result.suggestions).toBeDefined();
+      expect(result.suggestions!.length).toBeGreaterThan(0);
     });
 
     it('应该处理复杂的错误情况', async () => {
