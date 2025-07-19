@@ -1,13 +1,13 @@
-import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
 
 // Types for diagram generation
 export interface DiagramGenerationRequest {
   prompt: string;
-  diagramType?: 'flowchart' | 'sequence' | 'class' | 'state' | 'gantt' | 'pie' | 'gitgraph';
+  diagramType?: 'flowchart' | 'sequence' | 'class' | 'state' | 'er' | 'journey' | 'gantt' | 'pie' | 'quadrant' | 'mindmap' | 'gitgraph' | 'kanban' | 'architecture' | 'packet';
   modelConfig: AIModelConfig;
   language?: string;
 }
@@ -24,7 +24,7 @@ export interface DiagramGenerationResult {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
-  };
+  } | undefined;
 }
 
 export interface AIModelConfig {
@@ -62,7 +62,7 @@ export class DiagramAgent {
           modelName: config.model,
           temperature: config.temperature ?? 0.7,
           maxTokens: config.maxTokens ?? 2048,
-          configuration: config.baseURL ? { baseURL: config.baseURL } : undefined,
+          ...(config.baseURL && { configuration: { baseURL: config.baseURL } }),
         });
 
       case 'anthropic':
@@ -71,7 +71,7 @@ export class DiagramAgent {
           modelName: config.model,
           temperature: config.temperature ?? 0.7,
           maxTokens: config.maxTokens ?? 2048,
-          clientOptions: config.baseURL ? { baseURL: config.baseURL } : undefined,
+          ...(config.baseURL && { clientOptions: { baseURL: config.baseURL } }),
         });
 
       case 'qwen':
@@ -122,10 +122,10 @@ export class DiagramAgent {
 
       let parsedResponse: DiagramResponse;
       try {
-        parsedResponse = JSON.parse(jsonMatch[1]);
+        parsedResponse = JSON.parse(jsonMatch[1] || '');
       } catch (parseError) {
         // Attempt to repair JSON
-        const repairedJson = this.repairJson(jsonMatch[1]);
+        const repairedJson = this.repairJson(jsonMatch[1] || '');
         parsedResponse = JSON.parse(repairedJson);
       }
 
@@ -263,6 +263,16 @@ Please analyze the requirements and generate an appropriate Mermaid diagram that
 - Transitions: s1 --> s2: event
 - Start/End: [*] --> s1, s1 --> [*]`,
       
+      er: `
+- Entities: entity "Entity Name" as e1
+- Relationships: e1 ||--o{ e2 : relationship
+- Attributes: e1 { +attribute1: type +attribute2: type }`,
+      
+      journey: `
+- Title: journey, title User Journey
+- Sections: section Phase 1
+- Tasks: Task 1: 5: User, Task 2: 3: System`,
+      
       gantt: `
 - Title: gantt, title Project Timeline
 - Sections: section Development
@@ -272,13 +282,40 @@ Please analyze the requirements and generate an appropriate Mermaid diagram that
 - Title: pie title Chart Title
 - Data: "Label 1": 42.96, "Label 2": 50.05`,
       
+      quadrant: `
+- Title: quadrantChart, title Quadrant Chart
+- Axes: x-axis Low --> High, y-axis Low --> High
+- Points: Q1: [0.3, 0.6]`,
+      
+      mindmap: `
+- Root: mindmap, root((Root))
+- Branches: A, B, C
+- Sub-branches: A --> A1, A --> A2`,
+      
       gitgraph: `
 - Commit: commit id: "commit message"
 - Branch: branch feature, checkout feature
 - Merge: checkout main, merge feature`,
+      
+      kanban: `
+- Title: kanban, title Kanban Board
+- Columns: To Do, In Progress, Done
+- Cards: Add card "Task 1" to "To Do"`,
+      
+      architecture: `
+- Use flowchart with architectural components
+- Start with: flowchart TD
+- Components: A[Component], B[Service], C[Database]
+- Connections: A --> B, B --> C`,
+      
+      packet: `
+- Use sequence diagram for packet flow
+- Start with: sequenceDiagram
+- Participants: Client, Server, Database
+- Messages: Client->>Server: Request, Server->>Database: Query`,
     };
 
-    return guidelines[type] || guidelines.flowchart;
+    return guidelines[type] || guidelines.flowchart || '';
   }
 
   private validateMermaidSyntax(mermaidCode: string): void {
@@ -391,8 +428,5 @@ export class DiagramAgentFactory {
 
 // Export types for external use
 export type {
-  DiagramGenerationRequest,
-  DiagramGenerationResult,
-  AIModelConfig,
-  DiagramResponse,
+    DiagramResponse
 };

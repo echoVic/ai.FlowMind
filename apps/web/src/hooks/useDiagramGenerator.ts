@@ -72,7 +72,7 @@ export const useDiagramGenerator = () => {
       // 使用 WebAgentManager 生成图表
       const result = await webAgentManager.generateDiagram({
         prompt: input,
-        diagramType: 'flowchart',
+        diagramType: currentDiagram.diagramType || 'flowchart',
         modelConfig
       });
 
@@ -82,7 +82,7 @@ export const useDiagramGenerator = () => {
           explanation: result.data.description,
           suggestions: [],
           mermaidCode: result.data.mermaidCode,
-          diagramType: 'flowchart',
+          diagramType: currentDiagram.diagramType || 'flowchart',
           metadata: {
             provider: 'AI',
             model: selectedModel,
@@ -95,8 +95,8 @@ export const useDiagramGenerator = () => {
           description: input,
           content: result.data.mermaidCode,
           mermaidCode: result.data.mermaidCode,
-          type: 'flowchart',
-          diagramType: 'flowchart',
+          type: currentDiagram.diagramType || 'flowchart',
+          diagramType: currentDiagram.diagramType || 'flowchart',
           title: result.data.title
         });
 
@@ -163,7 +163,7 @@ export const useDiagramGenerator = () => {
       // 使用 WebAgentManager 优化图表
       const result = await webAgentManager.optimizeDiagram({
         prompt: requirements,
-        diagramType: 'flowchart',
+        diagramType: currentDiagram.diagramType || 'flowchart',
         modelConfig,
         existingCode: currentDiagram.mermaidCode
       });
@@ -174,7 +174,7 @@ export const useDiagramGenerator = () => {
           explanation: result.data.description,
           suggestions: [],
           mermaidCode: result.data.mermaidCode,
-          diagramType: 'flowchart',
+          diagramType: currentDiagram.diagramType || 'flowchart',
           metadata: {
             provider: 'AI',
             model: selectedModel,
@@ -186,8 +186,8 @@ export const useDiagramGenerator = () => {
           ...currentDiagram,
           content: result.data.mermaidCode,
           mermaidCode: result.data.mermaidCode,
-          type: 'flowchart',
-          diagramType: 'flowchart',
+          type: currentDiagram.diagramType || 'flowchart',
+          diagramType: currentDiagram.diagramType || 'flowchart',
           title: result.data.title
         });
 

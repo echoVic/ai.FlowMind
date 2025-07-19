@@ -28,12 +28,16 @@ export type DiagramType =
   | 'sequence'
   | 'class'
   | 'state'
-  | 'entity-relationship'
-  | 'user-journey'
+  | 'er'
+  | 'journey'
   | 'gantt'
   | 'pie'
-  | 'requirement'
-  | 'gitgraph';
+  | 'quadrant'
+  | 'mindmap'
+  | 'gitgraph'
+  | 'kanban'
+  | 'architecture'
+  | 'packet';
 
 // ===== AI Response Types =====
 
