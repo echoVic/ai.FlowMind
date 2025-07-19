@@ -1,0 +1,34 @@
+{
+  "name": "@flowmind/shared-types",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Shared type definitions for FlowMind applications",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "types",
+    "typescript",
+    "flowmind",
+    "diagram",
+    "ai"
+  ],
+  "author": "FlowMind Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bytedance/ai.FlowMind.git",
+    "directory": "packages/shared-types"
+  }
+}

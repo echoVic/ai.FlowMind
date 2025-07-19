@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@codemirror/lint": "^6.8.5",
+    "@flowmind/diagram-core": "workspace:*",
+    "@flowmind/shared-types": "workspace:*",
     "@langchain/anthropic": "^0.3.0",
     "@langchain/core": "^0.3.0",
     "@langchain/openai": "^0.3.0",

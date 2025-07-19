@@ -7,6 +7,7 @@ import { Lightbulb, Plus, Settings, Sparkles } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useDiagramGenerator } from '../../hooks/useDiagramGenerator';
 import { useInputPanel } from '../../stores/hooks';
+import { useModelManager } from '../../hooks/useModelManager';
 import AddCustomModelModal from './AddCustomModelModal';
 import DiagnosticPanel from './DiagnosticPanel';
 
@@ -26,14 +27,22 @@ const InputPanel: React.FC = () => {
     setShowAddCustomModel,
     loadCustomModels
   } = useInputPanel();
-  
+
   const { generateDiagram } = useDiagramGenerator();
+  const { loadModels } = useModelManager();
   const [showDiagnostic, setShowDiagnostic] = useState(false);
 
-  // 加载自定义模型
+  // 初始化：加载默认模型和自定义模型
   useEffect(() => {
-    loadCustomModels();
-  }, [loadCustomModels]);
+    const initializeModels = async () => {
+      // 先加载默认模型
+      await loadModels();
+      // 再加载自定义模型（会合并到 availableModels 中）
+      loadCustomModels();
+    };
+
+    initializeModels();
+  }, [loadModels, loadCustomModels]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,15 +61,7 @@ const InputPanel: React.FC = () => {
     generateDiagram(example);
   };
 
-  // 默认模型选项（火山引擎模型）
-  const defaultModelOptions = [
-    { value: 'ep-20250530171222-q42h8', label: '🌋 DeepSeek-V3'},
-    { value: 'ep-20250715105951-5rbzv', label: '🌋 Doubao-Seed-1.6-flash | 250615' },
-    { value: 'ep-20250617131345-rshkp', label: '🌋 Doubao-Seed-1.6 | 250615' },
-    { value: 'ep-20250612135125-br9k7', label: '🌋 Doubao-Seed-1.6-thinking | 250615' },
-    { value: 'ep-20250417144747-rgffm', label: '🌋 Doubao-1.5-thinking-pro' },
-    { value: 'ep-20250530171307-rrcc5', label: '🌋 DeepSeek-R1 | 250528' },
-  ];
+
 
   // 获取图标
   const getProviderIcon = (provider: string) => {
@@ -82,15 +83,13 @@ const InputPanel: React.FC = () => {
     }
   };
 
-  // 使用动态模型列表，如果没有则使用默认
-  const modelOptions = availableModels.length > 0 
-    ? availableModels.map(model => ({
-        value: model.name,
-        label: model.displayName,
-        icon: model.icon || getProviderIcon(model.provider),
-        isCustom: model.name.startsWith('custom_')
-      }))
-    : defaultModelOptions.map(opt => ({ ...opt, isCustom: false }));
+  // 使用动态模型列表
+  const modelOptions = availableModels.map(model => ({
+    value: model.name,
+    label: model.displayName,
+    icon: model.icon || getProviderIcon(model.provider),
+    isCustom: model.name.startsWith('custom_')
+  }));
 
   // 如果当前没有选择模型，自动选择第一个可用模型
   React.useEffect(() => {

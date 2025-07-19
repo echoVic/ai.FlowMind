@@ -1,11 +1,10 @@
 /**
  * 架构图生成相关Hook
  * 使用 Zustand 状态管理，基于 LangChain Agent 的新架构
+ * 使用 WebAgentManager 提供环境变量支持和默认Agent初始化
  */
 import { toast } from 'react-hot-toast';
-import type { DiagramGenerationRequest } from '../agents/DiagramAgent';
-import { agentManager } from '../services/AgentManager';
-import type { AIModelConfig, DirectCallConfig, DiagramData } from '../shared/types';
+import { webAgentManager } from '../services/WebAgentManager';
 import {
   useCurrentDiagram,
   useNaturalLanguageInput,
@@ -17,27 +16,6 @@ import {
   useDirectCallConfig
 } from '../stores/hooks';
 import { useAppStore } from '../stores/appStore';
-
-/**
- * 根据模型名称推断提供商类型
- */
-const getProviderFromModel = (modelName: string): string => {
-  if (modelName.startsWith('ep-') || modelName.includes('doubao') || modelName.includes('volcengine')) {
-    return 'volcengine';
-  }
-  if (modelName.startsWith('gpt-') || modelName.includes('openai')) {
-    return 'openai';
-  }
-  if (modelName.startsWith('claude-') || modelName.includes('anthropic')) {
-    return 'anthropic';
-  }
-  if (modelName.includes('qwen') || modelName.includes('dashscope')) {
-    return 'qwen';
-  }
-  
-  // 默认返回 volcengine (因为大多数模型是火山引擎的)
-  return 'volcengine';
-};
 
 export const useDiagramGenerator = () => {
   // 使用 Zustand hooks
@@ -58,30 +36,6 @@ export const useDiagramGenerator = () => {
   const setAiResponse = useAppStore(state => state.setAiResponse);
   const setErrorMessage = useAppStore(state => state.setErrorMessage);
 
-  /**
-   * 注册或更新 Agent
-   */
-  const ensureAgentRegistered = (modelInfo: AIModelConfig, providerConfig: DirectCallConfig): string => {
-    const agentKey = `${modelInfo.provider}-${modelInfo.name}`;
-    
-    try {
-      agentManager.registerAgent(agentKey, {
-        apiKey: providerConfig.apiKey,
-        provider: modelInfo.provider as 'volcengine' | 'openai' | 'anthropic',
-        modelName: modelInfo.model,
-        temperature: modelInfo.temperature,
-        maxTokens: modelInfo.maxTokens,
-        enableMemory: false
-      });
-      console.log(`Agent 注册成功: ${agentKey}`);
-      return agentKey;
-    } catch (error) {
-      console.error(`Agent 注册失败: ${agentKey}`, error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Agent 注册失败: ${errorMessage}`);
-    }
-  };
-
   const generateDiagram = async (description?: string) => {
     const input = description || naturalInput;
     if (!input.trim()) {
@@ -93,108 +47,68 @@ export const useDiagramGenerator = () => {
     setErrorMessage(null);
 
     try {
-      console.log('=== 基于 Agent 的图表生成开始 ===');
-      console.log('输入描述:', input);
-      console.log('选择的模型:', selectedModel);
-      console.log('可用模型数量:', availableModels.length);
-
-      // 尝试使用默认 Agent 或查找现有 Agent
-      let agentKey: string | undefined;
-      
-      // 如果有可用模型配置，使用传统方式
-      if (availableModels.length > 0) {
-        const modelInfo = availableModels.find(m => m.name === selectedModel);
-        if (!modelInfo) {
-          throw new Error(`未找到选择的模型配置: ${selectedModel}`);
-        }
-
-        const providerConfig = directCallConfig[modelInfo.provider];
-        if (!providerConfig?.apiKey) {
-          throw new Error(`请先配置 ${modelInfo.provider} 的 API 密钥`);
-        }
-
-        agentKey = ensureAgentRegistered(modelInfo, providerConfig);
-      } else {
-        // 如果没有可用模型但有选择的模型，尝试从环境变量获取对应的 Agent
-        if (selectedModel) {
-          // 根据选择的模型来判断应该使用哪个默认 Agent
-          const providerType = getProviderFromModel(selectedModel);
-          const defaultAgentKey = `${providerType}-default`;
-          
-          // 检查是否有对应的默认 Agent
-          const availableAgents = agentManager.getAvailableAgents();
-          if (availableAgents.includes(defaultAgentKey)) {
-            // 如果选择的模型和默认 Agent 的模型不同，需要创建新的 Agent
-            const currentDefaultAgent = agentManager.getAgent(defaultAgentKey);
-            if (currentDefaultAgent && (currentDefaultAgent as any).modelName !== selectedModel) {
-              // 创建专门针对选择模型的 Agent
-              const specificAgentKey = `${providerType}-${selectedModel}`;
-              if (!availableAgents.includes(specificAgentKey)) {
-                agentManager.registerAgent(specificAgentKey, {
-                  apiKey: process.env.NEXT_PUBLIC_ARK_API_KEY || '',
-                  provider: providerType as 'volcengine' | 'openai' | 'anthropic' | 'qwen',
-                  modelName: selectedModel,
-                  temperature: 0.7,
-                  maxTokens: 2048,
-                  enableMemory: false
-                });
-              }
-              agentKey = specificAgentKey;
-              console.log(`使用专门的 Agent: ${specificAgentKey} (模型: ${selectedModel})`);
-            } else {
-              agentKey = defaultAgentKey;
-              console.log(`使用默认 Agent: ${defaultAgentKey}`);
-            }
-          } else {
-            console.log('未找到对应的默认 Agent，使用全局默认 Agent');
-            agentKey = undefined;
-          }
-        } else {
-          // 使用全局默认 Agent
-          console.log('使用全局默认 Agent');
-          agentKey = undefined;
-        }
+      // 获取当前选择的模型配置
+      const modelInfo = availableModels.find(m => m.name === selectedModel);
+      if (!modelInfo) {
+        throw new Error('请先选择一个AI模型');
       }
 
-      // 构建生成请求
-      const request: DiagramGenerationRequest = {
-        description: input,
-        diagramType: currentDiagram.diagramType,
-        existingCode: currentDiagram.mermaidCode
+      // 获取提供商配置
+      const providerConfig = directCallConfig[modelInfo.provider];
+      if (!providerConfig || !providerConfig.apiKey) {
+        throw new Error(`请先配置 ${modelInfo.provider} 的API密钥`);
+      }
+
+      // 构建模型配置
+      const modelConfig = {
+        provider: modelInfo.provider as 'openai' | 'anthropic' | 'qwen' | 'volcengine',
+        model: modelInfo.model,
+        apiKey: providerConfig.apiKey,
+        baseURL: providerConfig.endpoint,
+        temperature: modelInfo.temperature ?? 0.7,
+        maxTokens: modelInfo.maxTokens ?? 2048,
       };
 
-      console.log('发送给 Agent 的请求:', request);
-      console.log('使用的 Agent:', agentKey || 'default');
-
-      // 使用 Agent 生成图表
-      const result = await agentManager.generateDiagram(request, agentKey);
-
-      console.log('Agent 生成成功，结果:', result);
-
-      // 转换 Agent 结果为前端格式
-      const frontendResult = {
-        mermaidCode: result.mermaidCode,
-        explanation: result.explanation,
-        suggestions: result.suggestions,
-        diagramType: result.diagramType as DiagramData['diagramType'],
-        metadata: result.metadata
-      };
-
-      setAiResponse(frontendResult);
-      setCurrentDiagram({
-        ...currentDiagram,
-        description: input,
-        mermaidCode: result.mermaidCode,
-        diagramType: result.diagramType as DiagramData['diagramType']
+      // 使用 WebAgentManager 生成图表
+      const result = await webAgentManager.generateDiagram({
+        prompt: input,
+        diagramType: 'flowchart',
+        modelConfig
       });
 
-      const providerName = result.metadata.provider || 'AI';
-      toast.success(`架构图生成成功！(使用 ${providerName})`);
+      if (result.success && result.data) {
+        // 更新状态 - 使用web应用期望的AIResponse格式
+        setAiResponse({
+          explanation: result.data.description,
+          suggestions: [],
+          mermaidCode: result.data.mermaidCode,
+          diagramType: 'flowchart',
+          metadata: {
+            provider: 'AI',
+            model: selectedModel,
+            timestamp: new Date().toISOString()
+          }
+        } as any);
+
+        setCurrentDiagram({
+          ...currentDiagram,
+          description: input,
+          content: result.data.mermaidCode,
+          mermaidCode: result.data.mermaidCode,
+          type: 'flowchart',
+          diagramType: 'flowchart',
+          title: result.data.title
+        });
+
+        toast.success(`架构图生成成功！`);
+      } else {
+        throw new Error(result.error || '生成失败');
+      }
 
     } catch (error) {
       console.error('Agent 图表生成失败:', error);
       setErrorMessage(error instanceof Error ? error.message : String(error));
-      
+
       // 提供具体的错误建议
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('API') || errorMessage.includes('密钥')) {
@@ -224,95 +138,63 @@ export const useDiagramGenerator = () => {
     setErrorMessage(null);
 
     try {
-      console.log('=== 基于 Agent 的图表优化开始 ===');
-      console.log('优化要求:', requirements);
-      console.log('现有代码长度:', currentDiagram.mermaidCode.length);
-
-      // 尝试使用默认 Agent 或查找现有 Agent
-      let agentKey: string | undefined;
-      
-      // 如果有可用模型配置，使用传统方式
-      if (availableModels.length > 0) {
-        const modelInfo = availableModels.find(m => m.name === selectedModel);
-        if (!modelInfo) {
-          throw new Error('未找到选择的模型配置');
-        }
-
-        const providerConfig = directCallConfig[modelInfo.provider];
-        if (!providerConfig?.apiKey) {
-          throw new Error(`请先配置 ${modelInfo.provider} 的 API 密钥`);
-        }
-
-        agentKey = ensureAgentRegistered(modelInfo, providerConfig);
-      } else {
-        // 如果没有可用模型但有选择的模型，尝试从环境变量获取对应的 Agent
-        if (selectedModel) {
-          // 根据选择的模型来判断应该使用哪个默认 Agent
-          const providerType = getProviderFromModel(selectedModel);
-          const defaultAgentKey = `${providerType}-default`;
-          
-          // 检查是否有对应的默认 Agent
-          const availableAgents = agentManager.getAvailableAgents();
-          if (availableAgents.includes(defaultAgentKey)) {
-            // 如果选择的模型和默认 Agent 的模型不同，需要创建新的 Agent
-            const currentDefaultAgent = agentManager.getAgent(defaultAgentKey);
-            if (currentDefaultAgent && (currentDefaultAgent as any).modelName !== selectedModel) {
-              // 创建专门针对选择模型的 Agent
-              const specificAgentKey = `${providerType}-${selectedModel}`;
-              if (!availableAgents.includes(specificAgentKey)) {
-                agentManager.registerAgent(specificAgentKey, {
-                  apiKey: process.env.NEXT_PUBLIC_ARK_API_KEY || '',
-                  provider: providerType as 'volcengine' | 'openai' | 'anthropic' | 'qwen',
-                  modelName: selectedModel,
-                  temperature: 0.7,
-                  maxTokens: 2048,
-                  enableMemory: false
-                });
-              }
-              agentKey = specificAgentKey;
-              console.log(`使用专门的 Agent: ${specificAgentKey} (模型: ${selectedModel})`);
-            } else {
-              agentKey = defaultAgentKey;
-              console.log(`使用默认 Agent: ${defaultAgentKey}`);
-            }
-          } else {
-            console.log('未找到对应的默认 Agent，使用全局默认 Agent');
-            agentKey = undefined;
-          }
-        } else {
-          // 使用全局默认 Agent
-          console.log('使用全局默认 Agent');
-          agentKey = undefined;
-        }
+      // 获取当前选择的模型配置
+      const modelInfo = availableModels.find(m => m.name === selectedModel);
+      if (!modelInfo) {
+        throw new Error('请先选择一个AI模型');
       }
 
-      // 使用 Agent 优化图表
-      const result = await agentManager.optimizeDiagram(
-        currentDiagram.mermaidCode,
-        requirements,
-        agentKey
-      );
+      // 获取提供商配置
+      const providerConfig = directCallConfig[modelInfo.provider];
+      if (!providerConfig || !providerConfig.apiKey) {
+        throw new Error(`请先配置 ${modelInfo.provider} 的API密钥`);
+      }
 
-      console.log('Agent 优化成功，结果:', result);
-
-      // 转换 Agent 结果为前端格式
-      const frontendResult = {
-        mermaidCode: result.mermaidCode,
-        explanation: result.explanation,
-        suggestions: result.suggestions,
-        diagramType: result.diagramType as DiagramData['diagramType'],
-        metadata: result.metadata
+      // 构建模型配置
+      const modelConfig = {
+        provider: modelInfo.provider as 'openai' | 'anthropic' | 'qwen' | 'volcengine',
+        model: modelInfo.model,
+        apiKey: providerConfig.apiKey,
+        baseURL: providerConfig.endpoint,
+        temperature: modelInfo.temperature ?? 0.7,
+        maxTokens: modelInfo.maxTokens ?? 2048,
       };
 
-      setAiResponse(frontendResult);
-      setCurrentDiagram({
-        ...currentDiagram,
-        mermaidCode: result.mermaidCode,
-        diagramType: result.diagramType as DiagramData['diagramType']
+      // 使用 WebAgentManager 优化图表
+      const result = await webAgentManager.optimizeDiagram({
+        prompt: requirements,
+        diagramType: 'flowchart',
+        modelConfig,
+        existingCode: currentDiagram.mermaidCode
       });
 
-      const providerName = result.metadata.provider || 'AI';
-      toast.success(`图表优化成功！(使用 ${providerName})`);
+      if (result.success && result.data) {
+        // 更新状态 - 使用web应用期望的AIResponse格式
+        setAiResponse({
+          explanation: result.data.description,
+          suggestions: [],
+          mermaidCode: result.data.mermaidCode,
+          diagramType: 'flowchart',
+          metadata: {
+            provider: 'AI',
+            model: selectedModel,
+            timestamp: new Date().toISOString()
+          }
+        } as any);
+
+        setCurrentDiagram({
+          ...currentDiagram,
+          content: result.data.mermaidCode,
+          mermaidCode: result.data.mermaidCode,
+          type: 'flowchart',
+          diagramType: 'flowchart',
+          title: result.data.title
+        });
+
+        toast.success(`图表优化成功！`);
+      } else {
+        throw new Error(result.error || '优化失败');
+      }
 
     } catch (error) {
       console.error('Agent 图表优化失败:', error);
@@ -326,33 +208,18 @@ export const useDiagramGenerator = () => {
 
   const validateConnection = async () => {
     try {
-      console.log('=== Agent 连接验证开始 ===');
-      
-      const modelInfo = availableModels.find(m => m.name === selectedModel);
-      if (!modelInfo) {
-        throw new Error('未找到选择的模型配置');
+      // 使用 WebAgentManager 测试默认Agent
+      const defaultAgentId = webAgentManager.getDefaultAgentId();
+      if (!defaultAgentId) {
+        const result = {
+          success: false,
+          message: '没有可用的Agent，请先配置API密钥'
+        };
+        toast.error(result.message);
+        return result;
       }
 
-      const providerConfig = directCallConfig[modelInfo.provider];
-      if (!providerConfig?.apiKey) {
-        throw new Error(`请先配置 ${modelInfo.provider} 的 API 密钥`);
-      }
-
-      // 注册临时 Agent 进行测试
-      const testAgentKey = `test-${modelInfo.provider}-${Date.now()}`;
-      agentManager.registerAgent(testAgentKey, {
-        apiKey: providerConfig.apiKey,
-        provider: modelInfo.provider as 'volcengine' | 'openai' | 'anthropic',
-        modelName: modelInfo.model,
-        temperature: 0.7,
-        maxTokens: 100,
-        enableMemory: false
-      });
-
-      const result = await agentManager.testAgent(testAgentKey);
-      
-      // 清理测试 Agent
-      agentManager.removeAgent(testAgentKey);
+      const result = await webAgentManager.testAgent(defaultAgentId);
 
       if (result.success) {
         toast.success(result.message);
@@ -389,7 +256,7 @@ export const useDiagramGenerator = () => {
     console.log('- 提供商:', modelInfo.provider);
     console.log('- 模型:', modelInfo.model);
     console.log('- API密钥状态:', providerConfig?.apiKey ? '已配置' : '未配置');
-    console.log('- 已注册的 Agents:', agentManager.getAvailableAgents());
+    console.log('- 已注册的 Agents:', webAgentManager.getAvailableAgents());
 
     if (providerConfig?.apiKey) {
       console.log('- API密钥预览:', `${providerConfig.apiKey.substring(0, 8)}...`);
@@ -411,15 +278,17 @@ export const useDiagramGenerator = () => {
   const resetDiagram = () => {
     setCurrentDiagram({
       title: '',
+      content: '',
       mermaidCode: '',
       description: '',
+      type: 'flowchart',
       diagramType: 'flowchart',
       tags: []
     });
     setNaturalInput('');
     setAiResponse(null);
     setErrorMessage(null);
-    agentManager.clearAllHistory();
+    // WebAgentManager 不需要清除历史，因为它是无状态的
   };
 
   return {

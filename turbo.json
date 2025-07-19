@@ -6,6 +6,17 @@
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**"]
     },
+    "diagram-core#build": {
+      "outputs": ["dist/**"]
+    },
+    "flowmind-extension#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "flowmind-extension#dev": {
+      "cache": false,
+      "persistent": true
+    },
     "lint": {},
     "dev": {
       "cache": false,

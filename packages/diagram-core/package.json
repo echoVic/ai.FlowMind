@@ -1,0 +1,41 @@
+{
+  "name": "@flowmind/diagram-core",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Core diagram generation logic for FlowMind AI diagram generator",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@langchain/anthropic": "^0.3.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/openai": "^0.3.0",
+    "zod": "^3.22.0",
+    "zustand": "^5.0.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "diagram",
+    "mermaid",
+    "ai",
+    "langchain",
+    "flowchart"
+  ],
+  "author": "FlowMind Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bytedance/ai.FlowMind.git",
+    "directory": "packages/diagram-core"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "@flowmind/extension",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "FlowMind Chrome Extension - AI-powered diagram generator",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@flowmind/shared-types": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.4.7",
+    "mermaid": "^10.6.1",
+    "@langchain/core": "^0.1.17",
+    "@langchain/openai": "^0.0.14",
+    "@langchain/anthropic": "^0.1.11",
+    "zod": "^3.22.4",
+    "framer-motion": "^10.16.16",
+    "lucide-react": "^0.303.0",
+    "react-hot-toast": "^2.4.1"
+  },
+  "devDependencies": {
+    "vite": "^5.0.8",
+    "@vitejs/plugin-react": "^4.2.1",
+    "@crxjs/vite-plugin": "^2.0.0-beta.21",
+    "typescript": "^5.2.2",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@types/chrome": "^0.0.258",
+    "tailwindcss": "^3.3.6",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32"
+  }
+}
