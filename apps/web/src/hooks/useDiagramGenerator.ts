@@ -5,17 +5,17 @@
  */
 import { toast } from 'react-hot-toast';
 import { webAgentManager } from '../services/WebAgentManager';
+import { useAppStore } from '../stores/appStore';
 import {
+  useAiResponse,
+  useAvailableModels,
   useCurrentDiagram,
-  useNaturalLanguageInput,
+  useDirectCallConfig,
   useIsGenerating,
   useIsOptimizing,
-  useAiResponse,
-  useSelectedModel,
-  useAvailableModels,
-  useDirectCallConfig
+  useNaturalLanguageInput,
+  useSelectedModel
 } from '../stores/hooks';
-import { useAppStore } from '../stores/appStore';
 
 export const useDiagramGenerator = () => {
   // 使用 Zustand hooks
@@ -47,6 +47,51 @@ export const useDiagramGenerator = () => {
     setErrorMessage(null);
 
     try {
+      // 优先使用 WebAgentManager 的默认 Agent
+      const defaultAgentId = webAgentManager.getDefaultAgentId();
+      
+      if (defaultAgentId) {
+        console.log('使用默认 Agent:', defaultAgentId);
+        // 使用默认 Agent 生成图表
+        const result = await webAgentManager.generateDiagram({
+          prompt: input,
+          diagramType: currentDiagram.diagramType || 'flowchart'
+        }, defaultAgentId);
+
+        if (result.success && result.data) {
+          // 更新状态 - 使用web应用期望的AIResponse格式
+          setAiResponse({
+            explanation: result.data.description,
+            suggestions: [],
+            mermaidCode: result.data.mermaidCode,
+            diagramType: currentDiagram.diagramType || 'flowchart',
+            metadata: {
+              provider: 'AI',
+              model: 'Default Agent',
+              timestamp: new Date().toISOString()
+            }
+          } as any);
+
+          setCurrentDiagram({
+            ...currentDiagram,
+            description: input,
+            content: result.data.mermaidCode,
+            mermaidCode: result.data.mermaidCode,
+            type: currentDiagram.diagramType || 'flowchart',
+            diagramType: currentDiagram.diagramType || 'flowchart',
+            title: result.data.title
+          });
+
+          toast.success(`架构图生成成功！`);
+          return;
+        } else {
+          throw new Error(result.error || '生成失败');
+        }
+      }
+
+      // 如果没有默认 Agent，尝试使用传统方式
+      console.log('没有默认 Agent，尝试使用传统配置方式');
+      
       // 获取当前选择的模型配置
       const modelInfo = availableModels.find(m => m.name === selectedModel);
       if (!modelInfo) {
@@ -138,6 +183,51 @@ export const useDiagramGenerator = () => {
     setErrorMessage(null);
 
     try {
+      // 优先使用 WebAgentManager 的默认 Agent
+      const defaultAgentId = webAgentManager.getDefaultAgentId();
+      
+      if (defaultAgentId) {
+        console.log('使用默认 Agent 优化图表:', defaultAgentId);
+        // 使用默认 Agent 优化图表
+        const result = await webAgentManager.optimizeDiagram({
+          prompt: requirements,
+          diagramType: currentDiagram.diagramType || 'flowchart',
+          existingCode: currentDiagram.mermaidCode
+        }, defaultAgentId);
+
+        if (result.success && result.data) {
+          // 更新状态 - 使用web应用期望的AIResponse格式
+          setAiResponse({
+            explanation: result.data.description,
+            suggestions: [],
+            mermaidCode: result.data.mermaidCode,
+            diagramType: currentDiagram.diagramType || 'flowchart',
+            metadata: {
+              provider: 'AI',
+              model: 'Default Agent',
+              timestamp: new Date().toISOString()
+            }
+          } as any);
+
+          setCurrentDiagram({
+            ...currentDiagram,
+            content: result.data.mermaidCode,
+            mermaidCode: result.data.mermaidCode,
+            type: currentDiagram.diagramType || 'flowchart',
+            diagramType: currentDiagram.diagramType || 'flowchart',
+            title: result.data.title
+          });
+
+          toast.success(`图表优化成功！`);
+          return;
+        } else {
+          throw new Error(result.error || '优化失败');
+        }
+      }
+
+      // 如果没有默认 Agent，尝试使用传统方式
+      console.log('没有默认 Agent，尝试使用传统配置方式');
+      
       // 获取当前选择的模型配置
       const modelInfo = availableModels.find(m => m.name === selectedModel);
       if (!modelInfo) {

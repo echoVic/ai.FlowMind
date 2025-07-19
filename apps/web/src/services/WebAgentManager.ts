@@ -35,26 +35,45 @@ export class WebAgentManager {
   /**
    * 生成图表
    */
-  async generateDiagram(request: DiagramGenerationRequest, agentId?: string): Promise<DiagramGenerationResult> {
-    // 如果没有指定agentId，尝试使用默认Agent或动态创建
+  async generateDiagram(request: DiagramGenerationRequest | { prompt: string; diagramType?: string }, agentId?: string): Promise<DiagramGenerationResult> {
+    // 如果没有指定agentId，尝试使用默认Agent
     let targetAgentId = agentId || this.defaultAgentId;
 
     if (!targetAgentId) {
-      // 如果没有默认Agent，尝试动态创建一个
-      const tempId = `temp-${Date.now()}`;
-      this.registerAgent(tempId, {
-        apiKey: request.modelConfig.apiKey,
-        provider: request.modelConfig.provider,
-        modelName: request.modelConfig.model,
-        temperature: request.modelConfig.temperature,
-        maxTokens: request.modelConfig.maxTokens
-      });
-      targetAgentId = tempId;
+      // 如果请求包含 modelConfig，尝试动态创建 Agent
+      if ('modelConfig' in request) {
+        const tempId = `temp-${Date.now()}`;
+        this.registerAgent(tempId, {
+          apiKey: request.modelConfig.apiKey,
+          provider: request.modelConfig.provider,
+          modelName: request.modelConfig.model,
+          temperature: request.modelConfig.temperature,
+          maxTokens: request.modelConfig.maxTokens
+        });
+        targetAgentId = tempId;
+      } else {
+        throw new Error('No default agent available and no modelConfig provided');
+      }
     }
 
     const agent = this.agents.get(targetAgentId);
     if (!agent) {
       throw new Error(`Agent not found: ${targetAgentId}`);
+    }
+
+    // 如果使用默认 Agent，需要构建完整的请求
+    if (!('modelConfig' in request)) {
+      const config = this.getAgentConfig(targetAgentId);
+      if (!config) {
+        throw new Error(`Agent config not found: ${targetAgentId}`);
+      }
+      
+      const fullRequest: DiagramGenerationRequest = {
+        prompt: request.prompt,
+        diagramType: request.diagramType as any,
+        modelConfig: config
+      };
+      return agent.generateDiagram(fullRequest);
     }
 
     return agent.generateDiagram(request);
@@ -63,21 +82,25 @@ export class WebAgentManager {
   /**
    * 优化图表
    */
-  async optimizeDiagram(request: DiagramGenerationRequest & { existingCode?: string }, agentId?: string): Promise<DiagramGenerationResult> {
-    // 如果没有指定agentId，尝试使用默认Agent或动态创建
+  async optimizeDiagram(request: (DiagramGenerationRequest & { existingCode?: string }) | { prompt: string; diagramType?: string; existingCode?: string }, agentId?: string): Promise<DiagramGenerationResult> {
+    // 如果没有指定agentId，尝试使用默认Agent
     let targetAgentId = agentId || this.defaultAgentId;
 
     if (!targetAgentId) {
-      // 如果没有默认Agent，尝试动态创建一个
-      const tempId = `temp-${Date.now()}`;
-      this.registerAgent(tempId, {
-        apiKey: request.modelConfig.apiKey,
-        provider: request.modelConfig.provider,
-        modelName: request.modelConfig.model,
-        temperature: request.modelConfig.temperature,
-        maxTokens: request.modelConfig.maxTokens
-      });
-      targetAgentId = tempId;
+      // 如果请求包含 modelConfig，尝试动态创建 Agent
+      if ('modelConfig' in request) {
+        const tempId = `temp-${Date.now()}`;
+        this.registerAgent(tempId, {
+          apiKey: request.modelConfig.apiKey,
+          provider: request.modelConfig.provider,
+          modelName: request.modelConfig.model,
+          temperature: request.modelConfig.temperature,
+          maxTokens: request.modelConfig.maxTokens
+        });
+        targetAgentId = tempId;
+      } else {
+        throw new Error('No default agent available and no modelConfig provided');
+      }
     }
 
     const agent = this.agents.get(targetAgentId);
