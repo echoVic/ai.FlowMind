@@ -39,8 +39,9 @@ export interface AIModelConfig {
 // Validation schema for AI response
 const DiagramResponseSchema = z.object({
   mermaidCode: z.string().min(1, 'Mermaid code cannot be empty'),
-  title: z.string().min(1, 'Title cannot be empty'),
-  description: z.string().min(1, 'Description cannot be empty'),
+  explanation: z.string().min(1, 'Explanation cannot be empty'),
+  suggestions: z.array(z.string()),
+  diagramType: z.string().min(1, 'Diagram type cannot be empty'),
 });
 
 type DiagramResponse = z.infer<typeof DiagramResponseSchema>;
@@ -114,20 +115,24 @@ export class DiagramAgent {
       const response = await this.llm.invoke(messages);
       const content = response.content as string;
 
-      // Extract JSON from response
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in AI response');
+      // Extract JSON from response - try multiple formats
+      let jsonContent = '';
+      
+      // First try to find JSON in code blocks
+      const jsonBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonBlockMatch) {
+        jsonContent = jsonBlockMatch[1] || '';
+      } else {
+        // If no code block, try to find JSON object directly
+        const jsonObjectMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonObjectMatch) {
+          jsonContent = jsonObjectMatch[0];
+        } else {
+          throw new Error('No JSON found in AI response');
+        }
       }
 
-      let parsedResponse: DiagramResponse;
-      try {
-        parsedResponse = JSON.parse(jsonMatch[1] || '');
-      } catch (parseError) {
-        // Attempt to repair JSON
-        const repairedJson = this.repairJson(jsonMatch[1] || '');
-        parsedResponse = JSON.parse(repairedJson);
-      }
+      const parsedResponse = this.parseJsonResponse(jsonContent);
 
       // Validate response structure
       const validatedResponse = DiagramResponseSchema.parse(parsedResponse);
@@ -137,7 +142,11 @@ export class DiagramAgent {
 
       return {
         success: true,
-        data: validatedResponse,
+        data: {
+          mermaidCode: this.cleanMermaidCode(validatedResponse.mermaidCode),
+          title: validatedResponse.suggestions.join(', '),
+          description: validatedResponse.explanation,
+        },
         usage: this.extractUsageInfo(response),
       };
     } catch (error) {
@@ -178,20 +187,24 @@ Please provide the optimized version following the JSON format specified.`;
       const response = await this.llm.invoke(messages);
       const content = response.content as string;
 
-      // Extract JSON from response
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in AI response');
+      // Extract JSON from response - try multiple formats
+      let jsonContent = '';
+      
+      // First try to find JSON in code blocks
+      const jsonBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonBlockMatch) {
+        jsonContent = jsonBlockMatch[1] || '';
+      } else {
+        // If no code block, try to find JSON object directly
+        const jsonObjectMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonObjectMatch) {
+          jsonContent = jsonObjectMatch[0];
+        } else {
+          throw new Error('No JSON found in AI response');
+        }
       }
 
-      let parsedResponse: DiagramResponse;
-      try {
-        parsedResponse = JSON.parse(jsonMatch[1] || jsonMatch[0]);
-      } catch (parseError) {
-        // Attempt to repair JSON
-        const repairedJson = this.repairJson(jsonMatch[1] || jsonMatch[0]);
-        parsedResponse = JSON.parse(repairedJson);
-      }
+      const parsedResponse = this.parseJsonResponse(jsonContent);
 
       // Validate response structure
       const validatedResponse = DiagramResponseSchema.parse(parsedResponse);
@@ -201,7 +214,11 @@ Please provide the optimized version following the JSON format specified.`;
 
       return {
         success: true,
-        data: validatedResponse,
+        data: {
+          mermaidCode: this.cleanMermaidCode(validatedResponse.mermaidCode),
+          title: validatedResponse.suggestions.join(', '),
+          description: validatedResponse.explanation,
+        },
         usage: this.extractUsageInfo(response),
       };
     } catch (error) {
@@ -214,22 +231,41 @@ Please provide the optimized version following the JSON format specified.`;
   }
 
   private buildSystemPrompt(diagramType?: string, language?: string): string {
-    const lang = language || 'English';
+    const lang = language || '中文';
     const type = diagramType || 'flowchart';
 
-    return `You are an expert in creating Mermaid diagrams. Your task is to generate a ${type} diagram based on user requirements.
+    return `你是一个专业的架构图生成专家。请根据用户的描述生成高质量的Mermaid代码。
 
-Rules:
-1. Return ONLY a JSON object with this exact structure: {"mermaidCode": "...", "title": "...", "description": "..."}
-2. The mermaidCode must be valid Mermaid syntax for a ${type}
-3. Use clear, descriptive node labels in ${lang}
-4. Ensure proper diagram flow and logical connections
-5. Include appropriate styling when beneficial
-6. The title should be concise and descriptive
-7. The description should explain the diagram's purpose and key elements
+生成规则：
+1. 严格按照Mermaid语法规范生成代码
+2. 根据描述选择最合适的图表类型
+3. 节点命名要清晰、有意义
+4. 连接关系要符合逻辑
+5. 代码结构要清晰易读
 
-Mermaid ${type} syntax guidelines:
-${this.getMermaidSyntaxGuidelines(type)}`;
+支持的图表类型：
+- flowchart: 流程图 (推荐用于业务流程、系统架构)
+- sequence: 时序图 (推荐用于交互流程、API调用)
+- class: 类图 (推荐用于系统设计、数据结构)
+- state: 状态图 (推荐用于对象生命周期、协议状态机)
+- er: 实体关系图 (推荐用于数据库设计)
+- journey: 用户旅程图 (推荐用于用户体验设计)
+- gantt: 甘特图 (推荐用于项目计划、时间安排)
+- pie: 饼图 (推荐用于数据统计、比例展示)
+- quadrant: 四象限图 (推荐用于战略分析、优先级排序)
+- mindmap: 思维导图 (推荐用于头脑风暴、知识整理)
+- gitgraph: Git分支图 (推荐用于版本管理流程)
+- kanban: 看板图 (推荐用于任务管理、敏捷开发)
+- architecture: 架构图 (C4风格，推荐用于复杂系统架构展示)
+- packet: 数据包图 (推荐用于网络协议分析)
+
+请严格按照以下JSON格式返回：
+{
+  "mermaidCode": "这里是生成的mermaid代码",
+  "explanation": "简要说明代码的功能和结构",
+  "suggestions": ["优化建议1", "优化建议2"],
+  "diagramType": "图表类型"
+}`;
   }
 
   private buildUserPrompt(prompt: string, diagramType?: string): string {
@@ -320,11 +356,18 @@ Please analyze the requirements and generate an appropriate Mermaid diagram that
 
   private validateMermaidSyntax(mermaidCode: string): void {
     // Basic syntax validation
-    const trimmedCode = mermaidCode.trim();
+    let trimmedCode = mermaidCode.trim();
     
     if (!trimmedCode) {
       throw new Error('Mermaid code is empty');
     }
+
+    // 移除可能的代码块标记
+    trimmedCode = trimmedCode
+      .replace(/^```mermaid\s*\n?/i, '')  // 移除开头的 ```mermaid
+      .replace(/^```\s*\n?/i, '')        // 移除开头的 ```
+      .replace(/\n?```\s*$/i, '')        // 移除结尾的 ```
+      .trim();                           // 移除前后空白
 
     // Check for basic Mermaid diagram types
     const validStarters = [
@@ -364,24 +407,154 @@ Please analyze the requirements and generate an appropriate Mermaid diagram that
   private repairJson(jsonString: string): string {
     let repaired = jsonString.trim();
 
-    // Remove any trailing commas
-    repaired = repaired.replace(/,(\s*[}\]])/g, '$1');
-
-    // Ensure proper quote escaping
-    repaired = repaired.replace(/\\"/g, '\\"');
-
-    // Fix common JSON issues
-    repaired = repaired.replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3'); // Quote unquoted keys
-    repaired = repaired.replace(/:\s*'([^']*)'/g, ': "$1"'); // Replace single quotes with double quotes
-
-    // Ensure the JSON is properly wrapped
-    if (!repaired.startsWith('{')) {
-      repaired = '{' + repaired;
+    // 方法1：尝试更简单的修复方法
+    // 首先尝试简单地转义未转义的换行符
+    let fixed = repaired
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t');
+    
+    // 测试是否能解析
+    try {
+      JSON.parse(fixed);
+      return fixed;
+    } catch (error) {
+      console.log('DiagramAgent: 简单修复失败，尝试更复杂的修复');
     }
-    if (!repaired.endsWith('}')) {
-      repaired = repaired + '}';
+    
+    // 方法2：更彻底的修复
+    try {
+      // 提取mermaidCode字段的值并单独处理
+      const mermaidCodeMatch = repaired.match(/"mermaidCode"\s*:\s*"([^"]*(?:\\.[^"]*)*)"(?=\s*,|\s*})/);
+      if (mermaidCodeMatch && mermaidCodeMatch[1]) {
+        const originalValue = mermaidCodeMatch[1];
+        // 正确转义Mermaid代码中的特殊字符
+        const escapedValue = originalValue
+          .replace(/\\/g, '\\\\')  // 转义反斜杠
+          .replace(/"/g, '\\"')    // 转义双引号
+          .replace(/\n/g, '\\n')   // 转义换行符
+          .replace(/\r/g, '\\r')   // 转义回车符
+          .replace(/\t/g, '\\t');  // 转义制表符
+        
+        // 替换原始值
+        const fixedJson = repaired.replace(mermaidCodeMatch[0], `"mermaidCode": "${escapedValue}"`);
+        
+        // 测试解析
+        JSON.parse(fixedJson);
+        return fixedJson;
+      }
+    } catch (error2) {
+      console.log('DiagramAgent: 复杂修复也失败');
     }
+    
+    // 方法3：最后的兜底方案 - 尝试重新构建JSON
+    try {
+      // 提取字段值（使用更宽松的匹配）
+      const mermaidCodeMatch = repaired.match(/"mermaidCode"\s*:\s*"([\s\S]*?)(?=",\s*"explanation"|"})/);
+      const explanationMatch = repaired.match(/"explanation"\s*:\s*"([^"]*(?:\\.[^"]*)*)"(?=\s*,|\s*})/);
+      const suggestionsMatch = repaired.match(/"suggestions"\s*:\s*\[([\s\S]*?)\](?=\s*,|\s*})/);
+      const diagramTypeMatch = repaired.match(/"diagramType"\s*:\s*"([^"]*)"(?=\s*,|\s*})/);
+      
+      if (mermaidCodeMatch && explanationMatch && diagramTypeMatch) {
+        // 重新构建JSON
+        const cleanedJson = {
+          mermaidCode: mermaidCodeMatch[1],
+          explanation: explanationMatch[1],
+          suggestions: suggestionsMatch ? JSON.parse(`[${suggestionsMatch[1]}]`) : [],
+          diagramType: diagramTypeMatch[1]
+        };
+        
+        return JSON.stringify(cleanedJson);
+      }
+    } catch (error3) {
+      console.log('DiagramAgent: 重构JSON也失败');
+    }
+    
+    // 如果所有方法都失败，返回原始字符串
+    return repaired;
+  }
 
+  private parseJsonResponse(jsonContent: string): DiagramResponse {
+    try {
+      const parsed = JSON.parse(jsonContent);
+      
+      // Handle nested response structure (like OpenAI/Anthropic format)
+      if (parsed.choices && parsed.choices[0] && parsed.choices[0].message && parsed.choices[0].message.content) {
+        // Extract the inner content which contains the actual diagram JSON
+        const innerContent = parsed.choices[0].message.content;
+        return this.parseInnerContent(innerContent);
+      } else {
+        // Direct response format
+        return parsed;
+      }
+    } catch (parseError) {
+      // If the outer JSON fails, try to parse as direct JSON
+      try {
+        return this.parseInnerContent(jsonContent);
+      } catch (innerError) {
+        const errorMessage = innerError instanceof Error ? innerError.message : String(innerError);
+        throw new Error(`Failed to parse JSON: ${errorMessage}`);
+      }
+    }
+  }
+
+  private parseInnerContent(content: string): DiagramResponse {
+    // First, try to find JSON in code blocks
+    const jsonBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonBlockMatch) {
+      const jsonStr = jsonBlockMatch[1] || '';
+      return this.parseJsonString(jsonStr);
+    }
+    
+    // Then try to find JSON object directly
+    const jsonObjectMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonObjectMatch) {
+      return this.parseJsonString(jsonObjectMatch[0]);
+    }
+    
+    throw new Error('No diagram JSON found in content');
+  }
+
+  private parseJsonString(jsonStr: string): DiagramResponse {
+    try {
+      // Clean up the JSON string to handle unescaped newlines and quotes
+      let cleaned = jsonStr.trim();
+      
+      // Handle unescaped newlines in string literals
+      cleaned = cleaned.replace(/\\n/g, '\\n');
+      cleaned = cleaned.replace(/\\r/g, '\\r');
+      cleaned = cleaned.replace(/\\t/g, '\\t');
+      
+      // Handle actual newlines in JSON strings
+      cleaned = cleaned.replace(/\n/g, '\\n');
+      cleaned = cleaned.replace(/\r/g, '\\r');
+      cleaned = cleaned.replace(/\t/g, '\\t');
+
+      // Handle unescaped quotes
+      cleaned = cleaned.replace(/\\"/g, '\\"');
+      
+      // Fix common JSON issues
+      cleaned = this.repairJson(cleaned);
+      
+      return JSON.parse(cleaned);
+    } catch (error) {
+      // If parsing still fails, try a more aggressive repair
+      const aggressivelyRepaired = this.aggressiveJsonRepair(jsonStr);
+      return JSON.parse(aggressivelyRepaired);
+    }
+  }
+
+  private aggressiveJsonRepair(jsonStr: string): string {
+    let repaired = jsonStr.trim();
+    
+    // Handle unescaped newlines and quotes more aggressively
+    repaired = repaired.replace(/(["'])\s*\n\s*(["'])/g, '$1\\n$2');
+    repaired = repaired.replace(/(["'])\s*\r\s*(["'])/g, '$1\\r$2');
+    repaired = repaired.replace(/(["'])\s*\t\s*(["'])/g, '$1\\t$2');
+    
+    // Ensure proper escaping
+    repaired = repaired.replace(/([^\\])"/g, '$1\\"');
+    
     return repaired;
   }
 
@@ -398,6 +571,19 @@ Please analyze the requirements and generate an appropriate Mermaid diagram that
     }
 
     return undefined;
+  }
+
+  private cleanMermaidCode(mermaidCode: string): string {
+    let cleaned = mermaidCode.trim();
+    
+    // 移除可能的代码块标记
+    cleaned = cleaned
+      .replace(/^```mermaid\s*\n?/i, '')  // 移除开头的 ```mermaid
+      .replace(/^```\s*\n?/i, '')        // 移除开头的 ```
+      .replace(/\n?```\s*$/i, '')        // 移除结尾的 ```
+      .trim();                           // 移除前后空白
+    
+    return cleaned;
   }
 }
 
@@ -428,5 +614,6 @@ export class DiagramAgentFactory {
 
 // Export types for external use
 export type {
-    DiagramResponse
+  DiagramResponse
 };
+
