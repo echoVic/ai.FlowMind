@@ -68,6 +68,17 @@ export const OptimizeDiagramInputSchema = z.object({
 export type OptimizeDiagramInput = z.infer<typeof OptimizeDiagramInputSchema>;
 
 /**
+ * 格式转换工具的输入参数
+ */
+export const ConvertFormatInputSchema = z.object({
+  mermaidCode: z.string().min(1, 'Mermaid 代码不能为空'),
+  targetFormat: DiagramTypeSchema.or(z.literal('auto')).default('auto'),
+  optimizeStructure: z.boolean().default(true).optional()
+});
+
+export type ConvertFormatInput = z.infer<typeof ConvertFormatInputSchema>;
+
+/**
  * 优化建议
  */
 export interface OptimizationSuggestion {
@@ -95,6 +106,24 @@ export interface OptimizationResult {
     accessibilityScore: number;
   };
   appliedOptimizations: string[];
+}
+
+/**
+ * 格式转换结果
+ */
+export interface FormatConversionResult {
+  originalCode: string;
+  convertedCode: string;
+  sourceFormat: string;
+  targetFormat: string;
+  conversionSteps: string[];
+  success: boolean;
+  warnings?: string[];
+  preservedElements: {
+    structure: boolean;
+    content: boolean;
+    relationships: boolean;
+  };
 }
 
 /**
