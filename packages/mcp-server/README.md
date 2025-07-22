@@ -1,4 +1,4 @@
-# @flowmind/mcp-server
+# flowmind-mcp-server
 
 A Model Context Protocol (MCP) server that provides Mermaid diagram generation, validation, and optimization tools for AI assistants.
 
@@ -15,7 +15,7 @@ A Model Context Protocol (MCP) server that provides Mermaid diagram generation, 
 ### Installation
 
 ```bash
-npm install -g @flowmind/mcp-server
+npm install -g flowmind-mcp-server
 ```
 
 ### MCP Configuration
@@ -26,7 +26,7 @@ npm install -g @flowmind/mcp-server
   "mcpServers": {
     "flowmind-mcp": {
       "command": "npx",
-      "args": ["@flowmind/mcp-server"],
+      "args": ["flowmind-mcp-server"],
       "description": "Mermaid diagram tools"
     }
   }
@@ -40,7 +40,7 @@ npm install -g @flowmind/mcp-server
     "servers": {
       "flowmind-mcp": {
         "command": "npx",
-        "args": ["@flowmind/mcp-server"]
+        "args": ["flowmind-mcp-server"]
       }
     }
   }
@@ -197,19 +197,19 @@ npm run dev
 **MCP Server Not Found:**
 ```bash
 # Verify installation
-npm list -g @flowmind/mcp-server
+npm list -g flowmind-mcp-server
 
 # Use full path if needed
 {
   "command": "node",
-  "args": ["/full/path/to/@flowmind/mcp-server/dist/index.js"]
+  "args": ["/full/path/to/flowmind-mcp-server/dist/index.js"]
 }
 ```
 
 **Tools Not Available:**
 ```bash
 # Check MCP server logs
-npx @flowmind/mcp-server --verbose
+npx flowmind-mcp-server --verbose
 
 # Verify JSON syntax
 cat ~/.config/claude-code/mcp_servers.json | jq .

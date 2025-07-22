@@ -1,5 +1,5 @@
 {
-  "name": "@flowmind/mcp-server",
+  "name": "flowmind-mcp-server",
   "version": "0.1.0",
   "description": "MCP server for Mermaid diagram generation and validation",
   "type": "module",
@@ -16,7 +16,9 @@
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:http": "chmod +x test/test-streamable-http.sh && ./test/test-streamable-http.sh",
-    "inspector:http": "npx @modelcontextprotocol/inspector --config test/streamable-http-config.json --server flowmind-streamable-http"
+    "inspector:http": "npx @modelcontextprotocol/inspector --config test/streamable-http-config.json --server flowmind-streamable-http",
+    "prepublishOnly": "npm run build",
+    "prepack": "npm run build"
   },
   "keywords": [
     "mcp",
@@ -27,6 +29,22 @@
   ],
   "author": "FlowMind",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/flowmind/mcp-server.git"
+  },
+  "homepage": "https://github.com/flowmind/mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/flowmind/mcp-server/issues"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@mermaid-js/parser": "^0.6.1",
     "@modelcontextprotocol/sdk": "^1.16.0",
