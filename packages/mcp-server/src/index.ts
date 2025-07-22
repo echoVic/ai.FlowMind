@@ -2,35 +2,23 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
-
+import { CallToolRequestSchema, ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { parse } from 'url';
 import { handleConvertDiagramFormat, handleGetDiagramTemplates, handleOptimizeDiagram, handleValidateMermaid } from './handlers.js';
-import { StreamingContext } from './sse/events.js';
-import { SSEServer } from './sse/SSEServer.js';
 import { StreamingHandlers } from './sse/StreamingHandlers.js';
-import { SSEServerConfig } from './sse/types.js';
 import { mcpTools, validateInput } from './tools.js';
+import { ConvertFormatInput, GetTemplatesInput, OptimizeDiagramInput, ValidateMermaidInput } from './types.js';
 
 /**
- * SSE Server configuration options
+ * HTTP Server configuration options
  */
-export interface SSEServerOptions {
+export interface HttpServerOptions {
   enabled: boolean;
   port?: number;
   cors?: {
     origin?: string[];
     credentials?: boolean;
-  };
-  heartbeat?: {
-    enabled?: boolean;
-    interval?: number;
-  };
-  connection?: {
-    timeout?: number;
-    maxConnections?: number;
   };
 }
 
@@ -39,11 +27,11 @@ export interface SSEServerOptions {
  */
 class MermaidMCPServer {
   private server: Server;
-  private sseServer?: SSEServer;
-  private sseOptions?: SSEServerOptions;
+  private httpOptions?: HttpServerOptions;
   private streamingHandlers: StreamingHandlers;
+  private httpServer: ReturnType<typeof createServer> | null = null;
 
-  constructor(sseOptions?: SSEServerOptions) {
+  constructor(httpOptions?: HttpServerOptions) {
     this.server = new Server(
       {
         name: '@flowmind/mcp-server',
@@ -57,12 +45,14 @@ class MermaidMCPServer {
       }
     );
 
-    this.sseOptions = sseOptions;
+    this.httpOptions = httpOptions;
     this.streamingHandlers = new StreamingHandlers();
     this.setupHandlers();
     
-    // Initialize SSE server if enabled
-    this.initSSEServer();
+    // Initialize HTTP server if enabled
+    if (this.httpOptions?.enabled) {
+      this.initHttpServer();
+    }
   }
 
   /**
@@ -87,16 +77,16 @@ class MermaidMCPServer {
         // 根据工具名称分发到对应的处理器
         switch (name) {
           case 'validate_mermaid':
-            return await handleValidateMermaid(validatedArgs);
+            return await handleValidateMermaid(validatedArgs as ValidateMermaidInput);
           
           case 'get_diagram_templates':
-            return await handleGetDiagramTemplates(validatedArgs);
+            return await handleGetDiagramTemplates(validatedArgs as GetTemplatesInput);
           
           case 'optimize_diagram':
-            return await handleOptimizeDiagram(validatedArgs);
+            return await handleOptimizeDiagram(validatedArgs as OptimizeDiagramInput);
           
           case 'convert_diagram_format':
-            return await handleConvertDiagramFormat(validatedArgs);
+            return await handleConvertDiagramFormat(validatedArgs as ConvertFormatInput);
           
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -120,279 +110,357 @@ class MermaidMCPServer {
   }
 
   /**
-   * 初始化SSE服务器
+   * 初始化HTTP服务器
    */
-  private initSSEServer(): void {
-    if (!this.sseOptions?.enabled) {
+  private initHttpServer(): void {
+    if (!this.httpOptions?.enabled) {
       return;
     }
 
-    const config: SSEServerConfig = {
-      port: this.sseOptions.port || 3001,
-      cors: {
-        origin: this.sseOptions.cors?.origin || ['http://localhost:3000', 'http://127.0.0.1:3000'],
-        credentials: this.sseOptions.cors?.credentials || true
-      },
-      heartbeat: {
-        enabled: this.sseOptions.heartbeat?.enabled || true,
-        interval: this.sseOptions.heartbeat?.interval || 30000
-      },
-      connection: {
-        timeout: this.sseOptions.connection?.timeout || 60000,
-        maxConnections: this.sseOptions.connection?.maxConnections || 100
-      }
-    };
-
-    this.sseServer = new SSEServer(config);
+    this.httpServer = createServer(this.handleHttpRequest.bind(this));
   }
 
   /**
-   * 启动SSE服务器
+   * 启动 HTTP 服务器
    */
-  private async startSSEServer(): Promise<void> {
-    if (!this.sseServer) {
+  private async startHttpServer(): Promise<void> {
+    if (!this.httpOptions?.enabled || !this.httpServer) {
+      return;
+    }
+
+    const port = this.httpOptions.port || 3001;
+    
+    return new Promise((resolve, reject) => {
+      this.httpServer!.listen(port, () => {
+        console.log(`🌐 HTTP Server started on port ${port}`);
+        resolve();
+      });
+      
+      this.httpServer!.on('error', (err: any) => {
+        console.error(`启动 HTTP 服务器失败:`, err);
+        reject(err);
+      });
+    });
+  }
+
+  /**
+   * 设置 CORS 头
+   */
+  private setCORSHeaders(res: ServerResponse, req: IncomingMessage): void {
+    res.setHeader('Access-Control-Allow-Origin', this.httpOptions?.cors?.origin?.join(', ') || '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+
+  /**
+   * 读取HTTP请求体
+   */
+  private readRequestBody(req: IncomingMessage): Promise<string> {
+    return new Promise((resolve, reject) => {
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        resolve(body);
+      });
+      req.on('error', (error) => {
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * 处理标准 MCP JSON-RPC 协议请求
+   */
+  private async handleMCPRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    if (req.method !== 'POST') {
+      this.sendJsonResponse(res, 405, { error: 'Method not allowed' });
       return;
     }
 
     try {
-      await this.sseServer.start();
-      console.log('✅ SSE Server started successfully');
+      // 读取请求体
+      const body = await this.readRequestBody(req);
+      const jsonRpcRequest = JSON.parse(body);
+
+      // 验证 JSON-RPC 请求格式
+      if (!jsonRpcRequest.jsonrpc || jsonRpcRequest.jsonrpc !== '2.0') {
+        this.sendJsonResponse(res, 400, {
+          jsonrpc: '2.0',
+          id: jsonRpcRequest.id !== undefined ? jsonRpcRequest.id : 0,
+          error: { code: -32600, message: 'Invalid Request' }
+        });
+        return;
+      }
+
+      // 处理不同的 MCP 方法
+      let result;
+      switch (jsonRpcRequest.method) {
+        case 'tools/list':
+          // 直接返回工具列表
+          result = {
+            tools: mcpTools
+          };
+          break;
+
+        case 'tools/call':
+          // 调用工具处理逻辑
+          const { name, arguments: args } = jsonRpcRequest.params;
+          try {
+            const validatedArgs = validateInput(name, args);
+            switch (name) {
+              case 'validate_mermaid':
+                result = await handleValidateMermaid(validatedArgs as ValidateMermaidInput);
+                break;
+              case 'get_diagram_templates':
+                result = await handleGetDiagramTemplates(validatedArgs as GetTemplatesInput);
+                break;
+              case 'optimize_diagram':
+                result = await handleOptimizeDiagram(validatedArgs as OptimizeDiagramInput);
+                break;
+              case 'convert_diagram_format':
+                result = await handleConvertDiagramFormat(validatedArgs as ConvertFormatInput);
+                break;
+              default:
+                throw new Error(`Unknown tool: ${name}`);
+            }
+          } catch (error) {
+            this.sendJsonResponse(res, 200, {
+              jsonrpc: '2.0',
+              id: jsonRpcRequest.id,
+              error: {
+                code: -32602,
+                message: 'Invalid params',
+                data: error instanceof Error ? error.message : String(error)
+              }
+            });
+            return;
+          }
+          break;
+
+        case 'resources/list':
+          // 返回空资源列表（如果需要的话）
+          result = { resources: [] };
+          break;
+
+        case 'resources/read':
+          // 资源读取（如果需要的话）
+          this.sendJsonResponse(res, 200, {
+            jsonrpc: '2.0',
+            id: jsonRpcRequest.id,
+            error: { code: -32601, message: 'Resources not implemented' }
+          });
+          return;
+
+        default:
+          this.sendJsonResponse(res, 200, {
+            jsonrpc: '2.0',
+            id: jsonRpcRequest.id !== undefined ? jsonRpcRequest.id : 0,
+            error: { code: -32601, message: 'Method not found' }
+          });
+          return;
+      }
+
+      // 发送成功响应
+      this.sendJsonResponse(res, 200, {
+        jsonrpc: '2.0',
+        id: jsonRpcRequest.id,
+        result
+      });
+
     } catch (error) {
-      console.error('❌ Failed to start SSE Server:', error);
-      throw error;
+      console.error('MCP request error:', error);
+      this.sendJsonResponse(res, 500, {
+        jsonrpc: '2.0',
+        id: 0, // 使用默认 id 而不是 null
+        error: { 
+          code: -32603, 
+          message: 'Internal error',
+          data: error instanceof Error ? error.message : String(error)
+        }
+      });
     }
   }
 
   /**
-   * 停止SSE服务器
+   * 处理 HTTP 请求 - 支持标准 MCP 协议和流式架构
    */
-  private async stopSSEServer(): Promise<void> {
-    if (!this.sseServer) {
+  private handleHttpRequest(req: IncomingMessage, res: ServerResponse): void {
+    // 设置 CORS 头
+    this.setCORSHeaders(res, req);
+    
+    // 处理 OPTIONS 请求（CORS 预检）
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
       return;
     }
 
-    try {
-      await this.sseServer.stop();
-      console.log('✅ SSE Server stopped successfully');
-    } catch (error) {
-      console.error('❌ Failed to stop SSE Server:', error);
+    // 解析 URL
+    const url = new URL(req.url!, `http://${req.headers.host}`);
+    
+    // 处理标准 MCP 协议端点（根路径）
+    if (url.pathname === '/' || url.pathname === '') {
+      this.handleMCPRequest(req, res);
+      return;
+    }
+
+    // 处理健康检查（GET 请求）
+    if (url.pathname === '/health' && req.method === 'GET') {
+      this.handleHealthCheck(req, res);
+      return;
+    }
+    
+    // 只处理 POST 请求到流式端点
+    if (req.method !== 'POST') {
+      this.sendJsonResponse(res, 405, { success: false, error: 'Method not allowed' });
+      return;
+    }
+
+    // 路由到不同的流式端点
+    switch (url.pathname) {
+      case '/api/stream/validate':
+        this.handleStreamValidation(req, res);
+        break;
+      case '/api/stream/optimize':
+        this.handleStreamOptimization(req, res);
+        break;
+      case '/api/stream/templates':
+        this.handleStreamTemplates(req, res);
+        break;
+      case '/api/stream/convert':
+        this.handleStreamConversion(req, res);
+        break;
+      default:
+        this.sendJsonResponse(res, 404, { success: false, error: 'Not found' });
+        return;
     }
   }
 
   /**
-   * 获取SSE服务器实例（用于发送事件）
+   * 处理流式验证请求
    */
-  public getSSEServer(): SSEServer | undefined {
-    return this.sseServer;
+  private handleStreamValidation(req: IncomingMessage, res: ServerResponse): void {
+    this.handleStreamingRequest(req, res, async (input: ValidateMermaidInput) => {
+      return await this.streamingHandlers.streamValidation(input, res);
+    });
   }
 
   /**
-   * Handle streaming validation request
+   * 处理流式优化请求
    */
-  public async handleStreamingValidation(input: any, connectionId: string): Promise<void> {
-    if (!this.sseServer) {
-      throw new Error('SSE Server not available');
-    }
-
-    const requestId = this.generateRequestId();
-    const context: StreamingContext = {
-      connectionId,
-      requestId,
-      emit: (data) => {
-        this.sseServer!.sendToConnection(connectionId, {
-          event: 'progress',
-          data
-        });
-      }
-    };
-
-    try {
-      const result = await this.streamingHandlers.streamValidation(input, context);
-      
-      // Send final result
-      try {
-        this.sseServer.sendToConnection(connectionId, {
-          event: 'result',
-          data: { requestId, operation: 'validation', result }
-        });
-      } catch (connectionError) {
-        console.error(`Failed to send result to connection ${connectionId}:`, connectionError);
-      }
-    } catch (error) {
-      try {
-        this.sseServer.sendToConnection(connectionId, {
-          event: 'error',
-          data: { 
-            requestId, 
-            operation: 'validation', 
-            error: error instanceof Error ? error.message : String(error) 
-          }
-        });
-      } catch (connectionError) {
-        console.error(`Failed to send error to connection ${connectionId}:`, connectionError);
-      }
-    }
+  private handleStreamOptimization(req: IncomingMessage, res: ServerResponse): void {
+    this.handleStreamingRequest(req, res, async (input: OptimizeDiagramInput) => {
+      return await this.streamingHandlers.streamOptimization(input, res);
+    });
   }
 
   /**
-   * Handle streaming optimization request
+   * 处理流式模板请求
    */
-  public async handleStreamingOptimization(input: any, connectionId: string): Promise<void> {
-    if (!this.sseServer) {
-      throw new Error('SSE Server not available');
-    }
-
-    const requestId = this.generateRequestId();
-    const context: StreamingContext = {
-      connectionId,
-      requestId,
-      emit: (data) => {
-        this.sseServer!.sendToConnection(connectionId, {
-          event: 'progress',
-          data
-        });
-      }
-    };
-
-    try {
-      const result = await this.streamingHandlers.streamOptimization(input, context);
-      
-      // Send final result
-      try {
-        this.sseServer.sendToConnection(connectionId, {
-          event: 'result',
-          data: { requestId, operation: 'optimization', result }
-        });
-      } catch (connectionError) {
-        console.error(`Failed to send result to connection ${connectionId}:`, connectionError);
-      }
-    } catch (error) {
-      try {
-        this.sseServer.sendToConnection(connectionId, {
-          event: 'error',
-          data: { 
-            requestId, 
-            operation: 'optimization', 
-            error: error instanceof Error ? error.message : String(error) 
-          }
-        });
-      } catch (connectionError) {
-        console.error(`Failed to send error to connection ${connectionId}:`, connectionError);
-      }
-    }
+  private handleStreamTemplates(req: IncomingMessage, res: ServerResponse): void {
+    this.handleStreamingRequest(req, res, async (input: GetTemplatesInput) => {
+      return await this.streamingHandlers.streamTemplateGeneration(input, res);
+    });
   }
 
   /**
-   * Handle streaming template generation request
+   * 处理流式转换请求
    */
-  public async handleStreamingTemplates(input: any, connectionId: string): Promise<void> {
-    if (!this.sseServer) {
-      throw new Error('SSE Server not available');
-    }
-
-    const requestId = this.generateRequestId();
-    const context: StreamingContext = {
-      connectionId,
-      requestId,
-      emit: (data) => {
-        this.sseServer!.sendToConnection(connectionId, {
-          event: 'progress',
-          data
-        });
-      }
-    };
-
-    try {
-      const result = await this.streamingHandlers.streamTemplateGeneration(input, context);
-      
-      // Send final result
-      try {
-        this.sseServer.sendToConnection(connectionId, {
-          event: 'result',
-          data: { requestId, operation: 'templates', result }
-        });
-      } catch (connectionError) {
-        console.error(`Failed to send result to connection ${connectionId}:`, connectionError);
-      }
-    } catch (error) {
-      try {
-        this.sseServer.sendToConnection(connectionId, {
-          event: 'error',
-          data: { 
-            requestId, 
-            operation: 'templates', 
-            error: error instanceof Error ? error.message : String(error) 
-          }
-        });
-      } catch (connectionError) {
-        console.error(`Failed to send error to connection ${connectionId}:`, connectionError);
-      }
-    }
+  private handleStreamConversion(req: IncomingMessage, res: ServerResponse): void {
+    this.handleStreamingRequest(req, res, async (input: ConvertFormatInput) => {
+      return await this.streamingHandlers.streamFormatConversion(input, res);
+    });
   }
 
   /**
-   * Handle streaming format conversion request
+   * 通用流式请求处理器
    */
-  public async handleStreamingFormatConversion(input: any, connectionId: string): Promise<void> {
-    if (!this.sseServer) {
-      throw new Error('SSE Server not available');
-    }
+  private handleStreamingRequest<T>(
+    req: IncomingMessage, 
+    res: ServerResponse, 
+    handler: (input: T) => Promise<any>
+  ): void {
+    // 设置流式响应头
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': this.httpOptions?.cors?.origin?.join(', ') || '*',
+      'Access-Control-Allow-Credentials': 'true'
+    });
 
-    const requestId = this.generateRequestId();
-    const context: StreamingContext = {
-      connectionId,
-      requestId,
-      emit: (data) => {
-        this.sseServer!.sendToConnection(connectionId, {
-          event: 'progress',
-          data
-        });
-      }
-    };
+    // 读取请求体
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk.toString();
+    });
 
-    try {
-      const result = await this.streamingHandlers.streamFormatConversion(input, context);
-      
-      // Send final result
+    req.on('end', async () => {
       try {
-        this.sseServer.sendToConnection(connectionId, {
-          event: 'result',
-          data: { requestId, operation: 'format_conversion', result }
-        });
-      } catch (connectionError) {
-        console.error(`Failed to send result to connection ${connectionId}:`, connectionError);
+        // 解析请求体
+        const input = JSON.parse(body) as T;
+        
+        // 调用处理器
+        await handler(input);
+        
+        // 关闭连接
+        res.end();
+      } catch (error) {
+        // 发送错误事件
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.writeSSEEvent(res, 'error', { error: errorMessage });
+        res.end();
       }
-    } catch (error) {
-      try {
-        this.sseServer.sendToConnection(connectionId, {
-          event: 'error',
-          data: { 
-            requestId, 
-            operation: 'format_conversion', 
-            error: error instanceof Error ? error.message : String(error) 
-          }
-        });
-      } catch (connectionError) {
-        console.error(`Failed to send error to connection ${connectionId}:`, connectionError);
-      }
-    }
+    });
+
+    req.on('error', (error) => {
+      console.error('Request error:', error);
+      this.writeSSEEvent(res, 'error', { error: 'Request processing failed' });
+      res.end();
+    });
   }
 
   /**
-   * Generate unique request ID
+   * 写入 SSE 事件
    */
-  private generateRequestId(): string {
-    return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  private writeSSEEvent(res: ServerResponse, event: string, data: any): void {
+    res.write(`event: ${event}\n`);
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  }
+
+  /**
+   * 处理健康检查请求
+   */
+  private handleHealthCheck(req: IncomingMessage, res: ServerResponse): void {
+    this.sendJsonResponse(res, 200, { 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      server: 'mcp-streamable-http'
+    });
+  }
+
+  /**
+   * 发送 JSON 响应
+   */
+  private sendJsonResponse(res: ServerResponse, statusCode: number, data: any): void {
+    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(data));
   }
 
   /**
    * 获取服务器状态
    */
-  public getStatus(): { mcp: boolean; sse?: { isRunning: boolean; connectionCount: number; port: number } } {
+  public getStatus(): { mcp: boolean; http?: { isRunning: boolean; port: number } } {
     const status: any = { mcp: true };
     
-    if (this.sseServer) {
-      status.sse = this.sseServer.getStatus();
+    if (this.httpOptions?.enabled) {
+      status.http = {
+        isRunning: this.httpServer !== null,
+        port: this.httpOptions.port || 3001
+      };
     }
     
     return status;
@@ -402,17 +470,14 @@ class MermaidMCPServer {
    * 启动服务器
    */
   public async start(): Promise<void> {
-    // 初始化SSE服务器
-    this.initSSEServer();
-
     // 启动MCP服务器
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.log('✅ MCP Server started successfully');
 
-    // 启动SSE服务器（如果启用）
-    if (this.sseOptions?.enabled) {
-      await this.startSSEServer();
+    // 启动HTTP服务器（如果启用）
+    if (this.httpOptions?.enabled) {
+      await this.startHttpServer();
     }
     
     // 优雅关闭处理
@@ -433,8 +498,15 @@ class MermaidMCPServer {
   public async shutdown(): Promise<void> {
     console.log('🔄 Shutting down servers...');
     
-    // 停止SSE服务器
-    await this.stopSSEServer();
+    // 停止HTTP服务器
+    if (this.httpServer) {
+      await new Promise<void>((resolve) => {
+        this.httpServer!.close(() => {
+          console.log('✅ HTTP Server shut down successfully');
+          resolve();
+        });
+      });
+    }
     
     // 停止MCP服务器
     await this.server.close();
@@ -445,37 +517,29 @@ class MermaidMCPServer {
 // 启动服务器
 async function main() {
   try {
-    // Parse command line arguments for SSE configuration
+    // Parse command line arguments for HTTP configuration
     const args = process.argv.slice(2);
-    const sseEnabled = args.includes('--sse') || process.env.MCP_SSE_ENABLED === 'true';
-    const ssePort = parseInt(process.env.MCP_SSE_PORT || '3001');
+    const httpEnabled = args.includes('--http') || process.env.MCP_HTTP_ENABLED === 'true';
+    const httpPort = parseInt(process.env.MCP_HTTP_PORT || '3001');
     
-    let sseOptions: SSEServerOptions | undefined;
+    let httpOptions: HttpServerOptions | undefined;
     
-    if (sseEnabled) {
-      sseOptions = {
+    if (httpEnabled) {
+      httpOptions = {
         enabled: true,
-        port: ssePort,
+        port: httpPort,
         cors: {
-          origin: process.env.MCP_SSE_CORS_ORIGINS?.split(',') || ['http://localhost:3000', 'http://127.0.0.1:3000'],
-          credentials: process.env.MCP_SSE_CORS_CREDENTIALS !== 'false'
-        },
-        heartbeat: {
-          enabled: process.env.MCP_SSE_HEARTBEAT_ENABLED !== 'false',
-          interval: parseInt(process.env.MCP_SSE_HEARTBEAT_INTERVAL || '30000')
-        },
-        connection: {
-          timeout: parseInt(process.env.MCP_SSE_CONNECTION_TIMEOUT || '60000'),
-          maxConnections: parseInt(process.env.MCP_SSE_MAX_CONNECTIONS || '100')
+          origin: process.env.MCP_HTTP_CORS_ORIGINS?.split(',') || ['http://localhost:3000', 'http://127.0.0.1:3000'],
+          credentials: process.env.MCP_HTTP_CORS_CREDENTIALS !== 'false'
         }
       };
       
-      console.log(`🚀 Starting MCP server with SSE enabled on port ${ssePort}`);
+      console.log(`🚀 Starting MCP server with StreamableHttp enabled on port ${httpPort}`);
     } else {
-      console.log('🚀 Starting MCP server (SSE disabled)');
+      console.log('🚀 Starting MCP server (StreamableHttp disabled)');
     }
     
-    const server = new MermaidMCPServer(sseOptions);
+    const server = new MermaidMCPServer(httpOptions);
     await server.start();
   } catch (error) {
     console.error('Failed to start MCP server:', error);

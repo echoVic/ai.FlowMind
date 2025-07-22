@@ -1,8 +1,8 @@
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { MermaidValidator } from './validator.js';
-import { TemplateManager } from './templates.js';
 import { DiagramOptimizer } from './optimizer/index.js';
-import { ValidateMermaidInput, GetTemplatesInput, OptimizeDiagramInput } from './types.js';
+import { TemplateManager } from './templates.js';
+import { ConvertFormatInput, GetTemplatesInput, OptimizeDiagramInput, ValidateMermaidInput } from './types.js';
+import { MermaidValidator } from './validator.js';
 
 /**
  * 处理 validate_mermaid 工具调用
@@ -239,7 +239,7 @@ export async function handleOptimizeDiagram(input: OptimizeDiagramInput): Promis
 /**
  * 处理 convert_diagram_format 工具调用
  */
-export async function handleConvertDiagramFormat(input: any): Promise<CallToolResult> {
+export async function handleConvertDiagramFormat(input: ConvertFormatInput): Promise<CallToolResult> {
   try {
     const optimizer = new DiagramOptimizer();
     const result = optimizer.convertFormat(

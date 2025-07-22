@@ -11,10 +11,12 @@
     "build": "tsup src/index.ts --format esm --target node18 --clean",
     "dev": "tsup src/index.ts --format esm --target node18 --watch",
     "start": "node dist/index.js",
-    "start:sse": "node dist/index.js --sse",
-    "dev:sse": "MCP_SSE_ENABLED=true tsup src/index.ts --format esm --target node18 --watch --onSuccess \"node dist/index.js --sse\"",
+    "start:http": "node dist/index.js --http",
+    "dev:http": "MCP_HTTP_ENABLED=true tsup src/index.ts --format esm --target node18 --watch --onSuccess \"node dist/index.js --http\"",
     "test": "vitest",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "test:http": "chmod +x test/test-streamable-http.sh && ./test/test-streamable-http.sh",
+    "inspector:http": "npx @modelcontextprotocol/inspector --config test/streamable-http-config.json --server flowmind-streamable-http"
   },
   "keywords": [
     "mcp",
@@ -27,10 +29,11 @@
   "license": "MIT",
   "dependencies": {
     "@mermaid-js/parser": "^0.6.1",
-    "@modelcontextprotocol/sdk": "^0.5.0",
+    "@modelcontextprotocol/sdk": "^1.16.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@modelcontextprotocol/inspector": "^0.16.1",
     "@types/node": "^20.11.24",
     "tsup": "^8.0.2",
     "typescript": "^5.3.3",

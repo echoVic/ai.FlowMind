@@ -1,5 +1,8 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { ValidateMermaidInputSchema, GetTemplatesInputSchema, OptimizeDiagramInputSchema } from './types.js';
+import { 
+  ValidateMermaidInputSchema, GetTemplatesInputSchema, OptimizeDiagramInputSchema, ConvertFormatInputSchema,
+  ValidateMermaidInput, GetTemplatesInput, OptimizeDiagramInput, ConvertFormatInput
+} from './types.js';
 
 /**
  * MCP 工具定义
@@ -174,7 +177,7 @@ export const mcpTools: Tool[] = [
 /**
  * 验证输入参数
  */
-export function validateInput(toolName: string, args: unknown) {
+export function validateInput(toolName: string, args: unknown): ValidateMermaidInput | GetTemplatesInput | OptimizeDiagramInput | ConvertFormatInput {
   switch (toolName) {
     case 'validate_mermaid':
       return ValidateMermaidInputSchema.parse(args);
@@ -183,7 +186,7 @@ export function validateInput(toolName: string, args: unknown) {
     case 'optimize_diagram':
       return OptimizeDiagramInputSchema.parse(args);
     case 'convert_diagram_format':
-      return OptimizeDiagramInputSchema.parse(args); // 复用相同的输入验证
+      return ConvertFormatInputSchema.parse(args); // 使用正确的格式转换输入验证
     default:
       throw new Error(`Unknown tool: ${toolName}`);
   }
