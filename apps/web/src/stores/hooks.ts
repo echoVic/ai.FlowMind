@@ -22,6 +22,8 @@ export const useModelSelectorOpen = () => useAppStore(state => state.modelSelect
 export const useSidebarOpen = () => useAppStore(state => state.sidebarOpen);
 export const useShowAddCustomModel = () => useAppStore(state => state.showAddCustomModel);
 export const useUseDirectCall = () => useAppStore(state => state.useDirectCall);
+export const useIsInputPanelOpen = () => useAppStore(state => state.isInputPanelOpen);
+export const useIsAIAssistantOpen = () => useAppStore(state => state.isAIAssistantOpen);
 
 // === 数据状态选择器 ===
 export const useAiResponse = () => useAppStore(state => state.aiResponse);
@@ -108,6 +110,8 @@ export const useUIActions = () => {
   const setSidebarOpen = useAppStore(state => state.setSidebarOpen);
   const setShowAddCustomModel = useAppStore(state => state.setShowAddCustomModel);
   const setUseDirectCall = useAppStore(state => state.setUseDirectCall);
+  const setIsInputPanelOpen = useAppStore(state => state.setIsInputPanelOpen);
+  const setIsAIAssistantOpen = useAppStore(state => state.setIsAIAssistantOpen);
   
   const toggleSidebar = () => {
     const currentState = useAppStore.getState().sidebarOpen;
@@ -119,13 +123,27 @@ export const useUIActions = () => {
     setModelSelectorOpen(!currentState);
   };
   
+  const toggleInputPanel = () => {
+    const currentState = useAppStore.getState().isInputPanelOpen;
+    setIsInputPanelOpen(!currentState);
+  };
+  
+  const toggleAIAssistant = () => {
+    const currentState = useAppStore.getState().isAIAssistantOpen;
+    setIsAIAssistantOpen(!currentState);
+  };
+  
   return {
     setModelSelectorOpen,
     setSidebarOpen,
     setShowAddCustomModel,
     setUseDirectCall,
+    setIsInputPanelOpen,
+    setIsAIAssistantOpen,
     toggleSidebar,
-    toggleModelSelector
+    toggleModelSelector,
+    toggleInputPanel,
+    toggleAIAssistant
   };
 };
 

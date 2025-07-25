@@ -116,44 +116,66 @@ export const useDiagramGenerator = () => {
         agentKey = ensureAgentRegistered(modelInfo, providerConfig);
       } else {
         // 如果没有可用模型但有选择的模型，尝试从环境变量获取对应的 Agent
-        if (selectedModel) {
-          // 根据选择的模型来判断应该使用哪个默认 Agent
-          const providerType = getProviderFromModel(selectedModel);
-          const defaultAgentKey = `${providerType}-default`;
-          
-          // 检查是否有对应的默认 Agent
-          const availableAgents = agentManager.getAvailableAgents();
-          if (availableAgents.includes(defaultAgentKey)) {
-            // 如果选择的模型和默认 Agent 的模型不同，需要创建新的 Agent
-            const currentDefaultAgent = agentManager.getAgent(defaultAgentKey);
-            if (currentDefaultAgent && (currentDefaultAgent as any).modelName !== selectedModel) {
-              // 创建专门针对选择模型的 Agent
-              const specificAgentKey = `${providerType}-${selectedModel}`;
-              if (!availableAgents.includes(specificAgentKey)) {
-                agentManager.registerAgent(specificAgentKey, {
-                  apiKey: process.env.NEXT_PUBLIC_ARK_API_KEY || '',
-                  provider: providerType as 'volcengine' | 'openai' | 'anthropic' | 'qwen',
-                  modelName: selectedModel,
-                  temperature: 0.7,
-                  maxTokens: 2048,
-                  enableMemory: false
-                });
+      if (selectedModel) {
+        // 根据选择的模型来判断应该使用哪个默认 Agent
+        const providerType = getProviderFromModel(selectedModel);
+        const defaultAgentKey = `${providerType}-default`;
+        
+        // 检查是否有对应的默认 Agent
+        const availableAgents = agentManager.getAvailableAgents();
+        if (availableAgents.includes(defaultAgentKey)) {
+          // 如果选择的模型和默认 Agent 的模型不同，需要创建新的 Agent
+          const currentDefaultAgent = agentManager.getAgent(defaultAgentKey);
+          if (currentDefaultAgent && (currentDefaultAgent as any).modelName !== selectedModel) {
+            // 创建专门针对选择模型的 Agent
+            const specificAgentKey = `${providerType}-${selectedModel}`;
+            if (!availableAgents.includes(specificAgentKey)) {
+              // 获取对应提供商的API密钥
+              let apiKey = '';
+              switch (providerType) {
+                case 'volcengine':
+                  apiKey = process.env.NEXT_PUBLIC_ARK_API_KEY || '';
+                  break;
+                case 'openai':
+                  apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || '';
+                  break;
+                case 'anthropic':
+                  apiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || '';
+                  break;
+                case 'qwen':
+                  apiKey = process.env.NEXT_PUBLIC_QWEN_API_KEY || '';
+                  break;
               }
-              agentKey = specificAgentKey;
-              console.log(`使用专门的 Agent: ${specificAgentKey} (模型: ${selectedModel})`);
-            } else {
-              agentKey = defaultAgentKey;
-              console.log(`使用默认 Agent: ${defaultAgentKey}`);
+              
+              // 如果没有API密钥，抛出明确的错误
+              if (!apiKey) {
+                throw new Error(`请先配置 ${providerType} 的 API 密钥`);
+              }
+              
+              agentManager.registerAgent(specificAgentKey, {
+                apiKey,
+                provider: providerType as 'volcengine' | 'openai' | 'anthropic' | 'qwen',
+                modelName: selectedModel,
+                temperature: 0.7,
+                maxTokens: 2048,
+                enableMemory: false
+              });
             }
+            agentKey = specificAgentKey;
+            console.log(`使用专门的 Agent: ${specificAgentKey} (模型: ${selectedModel})`);
           } else {
-            console.log('未找到对应的默认 Agent，使用全局默认 Agent');
-            agentKey = undefined;
+            agentKey = defaultAgentKey;
+            console.log(`使用默认 Agent: ${defaultAgentKey}`);
           }
         } else {
-          // 使用全局默认 Agent
-          console.log('使用全局默认 Agent');
+          console.log('未找到对应的默认 Agent，使用全局默认 Agent');
           agentKey = undefined;
         }
+      } else {
+        // 使用全局默认 Agent
+        console.log('使用全局默认 Agent');
+        agentKey = undefined;
+      }
       }
 
       // 构建生成请求
@@ -199,6 +221,8 @@ export const useDiagramGenerator = () => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('API') || errorMessage.includes('密钥')) {
         toast.error('API 密钥问题，请检查配置');
+      } else if (errorMessage.includes('Agent not found')) {
+        toast.error('Agent 未找到，请检查是否已配置 API 密钥');
       } else if (errorMessage.includes('Agent')) {
         toast.error('Agent 初始化失败，请检查配置');
       } else {

@@ -102,10 +102,10 @@ const InputPanel: React.FC = () => {
 
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex flex-col h-full">
       {/* 标题栏 */}
-      <div className="p-6 border-b border-gray-50">
-        <div className="flex items-center justify-between mb-4">
+      <div className="p-4 border-b border-gray-100">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
             <h2 className="font-medium text-gray-900">描述需求</h2>
@@ -129,7 +129,7 @@ const InputPanel: React.FC = () => {
                 };
                 setCurrentDiagram(newDiagram);
               }}
-              className="text-sm border-0 bg-gray-50 rounded-md px-3 py-1 focus:ring-1 focus:ring-blue-500"
+              className="text-xs border-0 bg-gray-100 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500"
             >
               <option value="flowchart">🔄 流程图</option>
               <option value="sequence">⏰ 时序图</option>
@@ -150,12 +150,12 @@ const InputPanel: React.FC = () => {
         </div>
 
         {/* AI模型选择 */}
-        <div className="space-y-2 mb-4">
+        <div className="space-y-2 mb-3">
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium text-gray-700">AI模型</label>
             <button
               onClick={() => setShowAddCustomModel(true)}
-              className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+              className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-700 px-1.5 py-1 rounded hover:bg-blue-50 transition-colors"
             >
               <Plus size={12} />
               <span>添加自定义</span>
@@ -164,7 +164,7 @@ const InputPanel: React.FC = () => {
           <select
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            className="w-full px-2 py-1.5 border border-gray-200 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-transparent text-xs"
             disabled={isGenerating}
           >
             {modelOptions.map((option) => (
@@ -176,79 +176,79 @@ const InputPanel: React.FC = () => {
         </div>
 
         {/* 诊断面板 */}
-        {showDiagnostic && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-4"
-          >
-            <DiagnosticPanel />
-          </motion.div>
-        )}
-      </div>
-
-      {/* 主输入区域 */}
-      <div className="flex-1 p-6">
-        <form onSubmit={handleSubmit} className="h-full flex flex-col">
-          <textarea
-            value={naturalLanguageInput}
-            onChange={(e) => setNaturalLanguageInput(e.target.value)}
-            placeholder="用自然语言描述您的架构需求，AI将为您生成专业的架构图..."
-            className="flex-1 w-full p-4 border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm leading-relaxed"
-            disabled={isGenerating}
-          />
-          
-          <div className="mt-6 flex justify-between items-center">
-            <span className="text-xs text-gray-400">
-              {naturalLanguageInput.length}/500
-            </span>
-            
-            <motion.button
-              type="submit"
-              disabled={isGenerating || !naturalLanguageInput.trim()}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex items-center space-x-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+          {showDiagnostic && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-3"
             >
-              {isGenerating ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>生成中...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles size={16} />
-                  <span>生成架构图</span>
-                </>
-              )}
-            </motion.button>
-          </div>
-        </form>
-      </div>
-
-      {/* 快速示例 */}
-      <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-        <div className="flex items-center space-x-2 mb-3">
-          <Lightbulb className="text-amber-500" size={14} />
-          <span className="text-xs font-medium text-gray-600">快速开始</span>
+              <DiagnosticPanel />
+            </motion.div>
+          )}
         </div>
-        
-        <div className="grid grid-cols-2 gap-2">
-          {quickExamples.map((example, index) => (
-            <motion.button
-              key={index}
-              onClick={() => handleQuickExample(example)}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              className="text-left p-2 text-xs text-gray-600 bg-white rounded border-0 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+
+        {/* 主输入区域 */}
+        <div className="flex-1 p-4">
+          <form onSubmit={handleSubmit} className="h-full flex flex-col">
+            <textarea
+              value={naturalLanguageInput}
+              onChange={(e) => setNaturalLanguageInput(e.target.value)}
+              placeholder="用自然语言描述您的架构需求，AI将为您生成专业的架构图..."
+              className="flex-1 w-full p-3 border border-gray-200 rounded-md resize-none focus:ring-1 focus:ring-blue-500 focus:border-transparent text-sm"
               disabled={isGenerating}
-            >
-              {example}
-            </motion.button>
-          ))}
+            />
+            
+            <div className="mt-4 flex justify-between items-center">
+              <span className="text-xs text-gray-400">
+                {naturalLanguageInput.length}/500
+              </span>
+              
+              <motion.button
+                type="submit"
+                disabled={isGenerating || !naturalLanguageInput.trim()}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center space-x-1.5 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium"
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>生成中...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} />
+                    <span>生成架构图</span>
+                  </>
+                )}
+              </motion.button>
+            </div>
+          </form>
         </div>
-      </div>
+
+        {/* 快速示例 */}
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
+          <div className="flex items-center space-x-2 mb-2">
+            <Lightbulb className="text-amber-500" size={12} />
+            <span className="text-xs font-medium text-gray-600">快速开始</span>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-1.5">
+            {quickExamples.map((example, index) => (
+              <motion.button
+                key={index}
+                onClick={() => handleQuickExample(example)}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className="text-left p-1.5 text-xs text-gray-600 bg-white rounded border border-gray-200 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                disabled={isGenerating}
+              >
+                {example}
+              </motion.button>
+            ))}
+          </div>
+        </div>
 
       {/* 添加自定义模型弹窗 */}
       <AddCustomModelModal />

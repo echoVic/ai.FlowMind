@@ -24,6 +24,8 @@ interface AppState {
   sidebarOpen: boolean;
   showAddCustomModel: boolean;
   useDirectCall: boolean;
+  isInputPanelOpen: boolean;
+  isAIAssistantOpen: boolean;
 
   // === 数据状态 ===
   aiResponse: AIResponse | null;
@@ -66,6 +68,8 @@ interface AppActions {
   setSidebarOpen: (open: boolean) => void;
   setShowAddCustomModel: (show: boolean) => void;
   setUseDirectCall: (use: boolean) => void;
+  setIsInputPanelOpen: (open: boolean) => void;
+  setIsAIAssistantOpen: (open: boolean) => void;
 
   // === 数据 Actions ===
   setAiResponse: (response: AIResponse | null) => void;
@@ -139,6 +143,8 @@ export const useAppStore = create<AppStore>()(
     sidebarOpen: false,
     showAddCustomModel: false,
     useDirectCall: false,
+    isInputPanelOpen: false,
+    isAIAssistantOpen: false,
 
     aiResponse: null,
     customModels: [],
@@ -189,6 +195,8 @@ export const useAppStore = create<AppStore>()(
     setSidebarOpen: (open) => set({ sidebarOpen: open }),
     setShowAddCustomModel: (show) => set({ showAddCustomModel: show }),
     setUseDirectCall: (use) => set({ useDirectCall: use }),
+    setIsInputPanelOpen: (open) => set({ isInputPanelOpen: open }),
+    setIsAIAssistantOpen: (open) => set({ isAIAssistantOpen: open }),
 
     // === 数据 Actions ===
     setAiResponse: (response) => set({ aiResponse: response }),

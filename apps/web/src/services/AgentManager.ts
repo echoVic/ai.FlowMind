@@ -223,9 +223,8 @@ export class AgentManager {
       });
       this.setDefaultAgent('anthropic-default');
     } else {
-      console.warn('AgentManager: 未找到任何 API 密钥配置');
-      console.warn('请在 .env.local 文件中配置 NEXT_PUBLIC_ARK_API_KEY、NEXT_PUBLIC_OPENAI_API_KEY、NEXT_PUBLIC_ANTHROPIC_API_KEY 或 NEXT_PUBLIC_QWEN_API_KEY');
-      console.warn('或者通过前端界面手动配置 Agent');
+      console.warn('AgentManager: 未找到任何 API 密钥配置，将不会设置默认 Agent。请在 .env.local 文件中配置 NEXT_PUBLIC_ARK_API_KEY、NEXT_PUBLIC_OPENAI_API_KEY、NEXT_PUBLIC_ANTHROPIC_API_KEY 或 NEXT_PUBLIC_QWEN_API_KEY');
+      console.warn('AgentManager: 当前可用的 Agent 列表:', this.getAvailableAgents());
     }
   }
 
