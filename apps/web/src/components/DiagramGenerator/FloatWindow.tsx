@@ -1,6 +1,6 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Minus, Square } from 'lucide-react';
-import React, { ReactNode, useState, useRef, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Minus } from 'lucide-react';
+import React, { ReactNode, useEffect, useRef, useState } from 'react';
 
 interface FloatWindowProps {
   isOpen: boolean;
@@ -45,13 +45,18 @@ const FloatWindow: React.FC<FloatWindowProps> = ({
 
   // 初始化位置
   useEffect(() => {
-    if (windowRef.current) {
+    if (windowRef.current && isOpen) {
       const { innerWidth, innerHeight } = window;
-      const x = (innerWidth - parseInt(width)) / 2;
-      const y = (innerHeight - parseInt(height)) / 2;
+      const parsedWidth = parseInt(windowWidth);
+      const parsedHeight = parseInt(windowHeight);
+      
+      // 统一将浮窗显示在右下角（机器人的上方）
+      const x = innerWidth - parsedWidth - 20;
+      const y = innerHeight - parsedHeight - 20;
+      
       setPosition({ x, y });
     }
-  }, [width, height]);
+  }, [windowWidth, windowHeight, isOpen]);
 
   // 处理鼠标按下事件
   const handleMouseDown = (e: React.MouseEvent) => {
