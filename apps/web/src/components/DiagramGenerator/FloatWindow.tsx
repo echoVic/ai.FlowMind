@@ -9,8 +9,8 @@ interface FloatWindowProps {
   children: ReactNode;
   width?: string;
   height?: string;
-  activePanel?: 'input' | 'ai';
-  onPanelChange?: (panel: 'input' | 'ai') => void;
+  activePanel?: 'input' | 'ai' | 'conversation';
+  onPanelChange?: (panel: 'input' | 'ai' | 'conversation') => void;
   isMinimized?: boolean;
   onMinimizeToggle?: () => void;
 }
@@ -28,9 +28,12 @@ const FloatWindow: React.FC<FloatWindowProps> = ({
   onMinimizeToggle = () => {}
 }) => {
   // 根据活动面板设置默认标题和尺寸
-  const defaultTitle = activePanel === 'input' ? '输入面板' : 'AI 优化助手';
-  const defaultWidth = activePanel === 'input' ? '500px' : '400px';
-  const defaultHeight = activePanel === 'input' ? '600px' : '500px';
+  const defaultTitle = activePanel === 'conversation' ? 'AI 对话助手' : 
+                      activePanel === 'input' ? '输入面板' : 'AI 优化助手';
+  const defaultWidth = activePanel === 'conversation' ? '600px' : 
+                      activePanel === 'input' ? '500px' : '400px';
+  const defaultHeight = activePanel === 'conversation' ? '700px' : 
+                       activePanel === 'input' ? '600px' : '500px';
   
   const windowTitle = title || defaultTitle;
   const windowWidth = width || defaultWidth;
@@ -153,16 +156,22 @@ const FloatWindow: React.FC<FloatWindowProps> = ({
               onMouseDown={handleMouseDown}
             >
               <h3 className="text-lg font-medium text-gray-900">{windowTitle}</h3>
-              <div className="flex space-x-2">
+              <div className="flex space-x-1">
+                <button
+                  onClick={() => onPanelChange('conversation')}
+                  className={`px-2 py-1 rounded text-xs ${activePanel === 'conversation' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                  对话
+                </button>
                 <button
                   onClick={() => onPanelChange('input')}
-                  className={`px-3 py-1 rounded text-sm ${activePanel === 'input' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  className={`px-2 py-1 rounded text-xs ${activePanel === 'input' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                 >
                   输入
                 </button>
                 <button
                   onClick={() => onPanelChange('ai')}
-                  className={`px-3 py-1 rounded text-sm ${activePanel === 'ai' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  className={`px-2 py-1 rounded text-xs ${activePanel === 'ai' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                 >
                   AI
                 </button>

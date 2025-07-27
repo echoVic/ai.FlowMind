@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { useIsAIAssistantOpen, useIsInputPanelOpen, useSidebarOpen, useUIActions } from '../../stores/hooks';
 import AIAssistant from './AIAssistant';
 import CodeEditor from './CodeEditor';
+import ConversationalDiagramPanel from './ConversationalDiagramPanel';
 import DiagramPreview from './DiagramPreview';
 import FloatWindow from './FloatWindow';
 import Header from './Header';
@@ -19,7 +20,7 @@ const DiagramGenerator: React.FC = () => {
   const isInputPanelOpen = useIsInputPanelOpen();
   const isAIAssistantOpen = useIsAIAssistantOpen();
   const { toggleInputPanel, toggleAIAssistant } = useUIActions();
-  const [activePanel, setActivePanel] = useState<'input' | 'ai'>('input');
+  const [activePanel, setActivePanel] = useState<'input' | 'ai' | 'conversation'>('conversation');
   const [isFloatWindowMinimized, setIsFloatWindowMinimized] = useState(false);
 
   // 处理快捷键
@@ -82,24 +83,38 @@ const DiagramGenerator: React.FC = () => {
         onClose={() => {
           if (activePanel === 'input') {
             toggleInputPanel();
-          } else {
+          } else if (activePanel === 'ai') {
             toggleAIAssistant();
+          } else {
+            // 对话面板关闭逻辑
+            toggleInputPanel();
           }
         }} 
         activePanel={activePanel}
-        onPanelChange={(panel) => {
+        onPanelChange={(panel: 'input' | 'ai' | 'conversation') => {
           // 如果当前面板是关闭的，需要打开它
           if (panel === 'input' && !isInputPanelOpen) {
             toggleInputPanel();
           } else if (panel === 'ai' && !isAIAssistantOpen) {
             toggleAIAssistant();
+          } else if (panel === 'conversation') {
+            // 对话面板逻辑
+            if (!isInputPanelOpen) {
+              toggleInputPanel();
+            }
           }
           setActivePanel(panel);
         }}
         isMinimized={isFloatWindowMinimized}
         onMinimizeToggle={() => setIsFloatWindowMinimized(!isFloatWindowMinimized)}
       >
-        {activePanel === 'input' ? <InputPanel /> : <AIAssistant />}
+        {activePanel === 'conversation' ? (
+          <ConversationalDiagramPanel />
+        ) : activePanel === 'input' ? (
+          <InputPanel />
+        ) : (
+          <AIAssistant />
+        )}
       </FloatWindow>
       
       {/* 右下角圆形按钮 */}
@@ -113,15 +128,21 @@ const DiagramGenerator: React.FC = () => {
             return;
           }
           
-          if (activePanel === 'input') {
-            // 如果两个面板都关闭了，确保输入面板被打开
+          // 默认打开对话面板
+          if (activePanel === 'conversation') {
+            if (!isInputPanelOpen && !isAIAssistantOpen) {
+              toggleInputPanel();
+              setActivePanel('conversation');
+            } else {
+              toggleInputPanel();
+            }
+          } else if (activePanel === 'input') {
             if (!isInputPanelOpen && !isAIAssistantOpen) {
               toggleInputPanel();
             } else {
               toggleInputPanel();
             }
           } else {
-            // 如果两个面板都关闭了，确保AI助手被打开
             if (!isInputPanelOpen && !isAIAssistantOpen) {
               toggleAIAssistant();
             } else {
