@@ -5,8 +5,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, AlertCircle, CheckCircle } from 'lucide-react';
-import { useAddCustomModelModal } from '../../../stores/hooks';
-import type { AIModelConfig } from '../../../shared/types';
+import { useAddCustomModelModal } from '@/lib/stores/hooks';
+import type { AIModelConfig } from '@/types/types';
 
 interface CustomModelForm {
   provider: string;

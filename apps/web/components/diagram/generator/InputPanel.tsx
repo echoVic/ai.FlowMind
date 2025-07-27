@@ -5,8 +5,8 @@
 import { motion } from 'framer-motion';
 import { Lightbulb, Plus, Settings, Sparkles } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { useDiagramGenerator } from '../../hooks/useDiagramGenerator';
-import { useInputPanel } from '../../stores/hooks';
+import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
+import { useInputPanel } from '@/lib/stores/hooks';
 import AddCustomModelModal from './AddCustomModelModal';
 import DiagnosticPanel from './DiagnosticPanel';
 

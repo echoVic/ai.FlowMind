@@ -5,8 +5,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Zap, Server, Loader2, Wifi } from 'lucide-react';
-import { useSelectedModel, useAvailableModels, useUseDirectCall } from '../../../stores/hooks';
-import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
+import { useSelectedModel, useAvailableModels, useUseDirectCall } from '@/lib/stores/hooks';
+import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
 
 const ValidationPanel: React.FC = () => {
   const selectedModel = useSelectedModel();

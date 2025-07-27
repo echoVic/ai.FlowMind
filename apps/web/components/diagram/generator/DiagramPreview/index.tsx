@@ -8,9 +8,9 @@ import { AlertTriangle, Download, Maximize, RotateCcw, Sparkles, ZoomIn, ZoomOut
 import mermaid from 'mermaid';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
-import { useAppStore } from '../../../stores/appStore';
-import { useCurrentDiagram, usePreviewConfig } from '../../../stores/hooks';
+import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
+import { useAppStore } from '@/lib/stores/appStore';
+import { useCurrentDiagram, usePreviewConfig } from '@/lib/stores/hooks';
 
 // 错误信息接口
 interface MermaidError {

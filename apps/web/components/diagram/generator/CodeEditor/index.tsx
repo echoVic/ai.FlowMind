@@ -11,8 +11,8 @@ import { Code, Copy, Download } from 'lucide-react';
 import React, { useCallback } from 'react';
 import toast from 'react-hot-toast';
 
-import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
-import { useCurrentDiagram, useEditorConfig } from '../../../stores/hooks';
+import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
+import { useCurrentDiagram, useEditorConfig } from '@/lib/stores/hooks';
 
 const CodeEditor: React.FC = () => {
   const currentDiagram = useCurrentDiagram();

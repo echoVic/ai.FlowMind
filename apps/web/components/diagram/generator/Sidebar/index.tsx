@@ -5,10 +5,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { History, Bookmark, Settings, Trash2, Calendar } from 'lucide-react';
-import { useSidebarOpen } from '../../../stores/hooks';
-import { useDiagramHistory } from '../../../hooks/useDiagramHistory';
-import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
-import type { DiagramData } from '../../../shared/types';
+import { useSidebarOpen } from '@/lib/stores/hooks';
+import { useDiagramHistory } from '@/lib/hooks/useDiagramHistory';
+import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
+import type { DiagramData } from '@/types/types';
 
 type TabType = 'history' | 'templates' | 'settings';
 

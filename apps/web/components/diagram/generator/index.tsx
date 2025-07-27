@@ -5,7 +5,7 @@
 import { Bot } from 'lucide-react';
 import { motion } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
-import { useIsAIAssistantOpen, useIsInputPanelOpen, useSidebarOpen, useUIActions } from '../../stores/hooks';
+import { useIsAIAssistantOpen, useIsInputPanelOpen, useSidebarOpen, useUIActions } from '@/lib/stores/hooks';
 import AIAssistant from './AIAssistant';
 import CodeEditor from './CodeEditor';
 import ConversationalDiagramPanel from './ConversationalDiagramPanel';

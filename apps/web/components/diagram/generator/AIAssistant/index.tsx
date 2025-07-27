@@ -5,8 +5,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bot, Send } from 'lucide-react';
-import { useAiResponse, useIsOptimizing } from '../../../stores/hooks';
-import { useDiagramGenerator } from '../../../hooks/useDiagramGenerator';
+import { useAiResponse, useIsOptimizing } from '@/lib/stores/hooks';
+import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
 
 const AIAssistant: React.FC = () => {
   const aiResponse = useAiResponse();

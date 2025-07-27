@@ -7,7 +7,7 @@ import { ClearOutlined, RobotOutlined, SettingOutlined, UserOutlined } from '@an
 import { Bubble, Conversations, Sender, useXAgent, useXChat } from '@ant-design/x';
 import { message as antdMessage, Button, Select, Space, Tooltip, Typography } from 'antd';
 import React, { useCallback, useMemo, useState } from 'react';
-import { useInputPanel } from '../../../stores/hooks';
+import { useInputPanel } from '@/lib/stores/hooks';
 
 const { Text } = Typography;
 

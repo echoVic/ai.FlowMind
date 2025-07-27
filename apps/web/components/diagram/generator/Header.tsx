@@ -6,10 +6,10 @@ import { motion } from 'framer-motion';
 import { Download, Menu, RotateCcw, Save, Share2 } from 'lucide-react';
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { useDiagramGenerator } from '../../hooks/useDiagramGenerator';
-import { useDiagramHistory } from '../../hooks/useDiagramHistory';
-import { useCurrentDiagram, useSidebarOpen } from '../../stores/hooks';
-import { useUIActions } from '../../stores/hooks';
+import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
+import { useDiagramHistory } from '@/lib/hooks/useDiagramHistory';
+import { useCurrentDiagram, useSidebarOpen } from '@/lib/stores/hooks';
+import { useUIActions } from '@/lib/stores/hooks';
 import SaveModal from './Header/SaveModal';
 
 const Header: React.FC = () => {

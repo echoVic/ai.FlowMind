@@ -5,9 +5,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Tag } from 'lucide-react';
-import { useCurrentDiagram } from '../../../stores/hooks';
-import { useAppStore } from '../../../stores/appStore';
-import { useDiagramHistory } from '../../../hooks/useDiagramHistory';
+import { useCurrentDiagram } from '@/lib/stores/hooks';
+import { useAppStore } from '@/lib/stores/appStore';
+import { useDiagramHistory } from '@/lib/hooks/useDiagramHistory';
 
 interface SaveModalProps {
   onClose: () => void;
