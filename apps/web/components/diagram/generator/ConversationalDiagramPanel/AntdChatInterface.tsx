@@ -4,10 +4,11 @@
  * 使用 useXAgent 和 useXChat 的标准组合
  */
 import { useInputPanel } from '@/lib/stores/hooks';
-import { ClearOutlined, RobotOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
-import { Bubble, Conversations, Sender, useXAgent, useXChat } from '@ant-design/x';
+import { ClearOutlined, PlusOutlined, RobotOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { Bubble, Conversations, Sender, ThoughtChain, useXAgent, useXChat } from '@ant-design/x';
+import { useMemoizedFn } from 'ahooks';
 import { message as antdMessage, Button, Select, Space, Tooltip, Typography } from 'antd';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 const { Text } = Typography;
 
@@ -29,16 +30,28 @@ interface ExtendedMessage {
   info?: string;
 }
 
+interface ThoughtStep {
+    title: string;
+    description: string;
+    status: 'pending' | 'success' | 'error';
+    timestamp: string;
+  }
+
 const AntdChatInterface: React.FC = () => {
   const {
     selectedModel,
     currentDiagram,
     setCurrentDiagram,
+    availableModels,
+    setSelectedModel,
+    setShowAddCustomModel,
   } = useInputPanel();
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [thoughtSteps, setThoughtSteps] = useState<ThoughtStep[]>([]);
+  const [showThoughtChain, setShowThoughtChain] = useState(false);
 
   // 图表类型选项
   const diagramTypeOptions = [
@@ -63,24 +76,60 @@ const AntdChatInterface: React.FC = () => {
     request: async (info, callbacks) => {
       setIsGenerating(true);
       setStreamingContent('');
+      resetThoughtChain();
       
       // 生成临时消息ID用于流式显示
       const tempMessageId = `streaming-${Date.now()}`;
       setStreamingMessageId(tempMessageId);
       
       try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messages: info.messages,
-            model: selectedModel,
-            diagramType: currentDiagram.diagramType,
-            userId: 'default'
-          }),
-        });
+            updateThoughtStep('分析需求', '正在理解用户的图表需求...', 'pending');
+            
+            // 确保消息数组包含当前要发送的消息
+      console.log('原始消息数组:', info.messages);
+      
+      // 获取有效的消息
+      const messagesToSend = [
+        ...info.messages.filter(msg => msg && (msg.content || msg.content === '')).map(msg => ({
+          role: msg.role || 'user',
+          content: typeof msg.content === 'string' ? msg.content : String(msg.content || '')
+        }))
+      ];
+      
+      // 确保至少有一条消息
+      if (messagesToSend.length === 0) {
+        console.error('没有有效的消息可以发送，info.messages:', info.messages);
+        
+        // 尝试从上下文中恢复最后一条消息
+        if (info.messages && info.messages.length > 0) {
+          const lastMessage = info.messages[info.messages.length - 1];
+          if (lastMessage) {
+            messagesToSend.push({
+              role: lastMessage.role || 'user',
+              content: String(lastMessage.content || '继续对话')
+            });
+          } else {
+            throw new Error('无法获取有效的用户消息');
+          }
+        } else {
+          throw new Error('对话消息为空');
+        }
+      }
+      
+      console.log('准备发送的消息:', messagesToSend);
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: messagesToSend,
+          model: selectedModel,
+          diagramType: currentDiagram.diagramType,
+          userId: 'default'
+        }),
+      });
 
         if (!response.ok) {
           throw new Error(`HTTP 错误! 状态: ${response.status}`);
@@ -97,6 +146,7 @@ const AntdChatInterface: React.FC = () => {
 
         // 流式读取响应
         console.log('开始接收流式响应...');
+        let step = 0;
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
@@ -107,6 +157,16 @@ const AntdChatInterface: React.FC = () => {
           const chunk = decoder.decode(value, { stream: true });
           console.log('收到流式数据块:', chunk);
           fullContent += chunk;
+          
+          // 根据内容更新思考步骤
+          if (fullContent.includes('```mermaid')) {
+            updateThoughtStep('生成图表', '正在生成Mermaid图表代码...', 'pending');
+          } else if (fullContent.includes('[METADATA]')) {
+            updateThoughtStep('处理结果', '正在解析图表元数据...', 'pending');
+          } else if (fullContent.length > 50 && step === 0) {
+            updateThoughtStep('构思设计', '正在构思图表结构和布局...', 'pending');
+            step = 1;
+          }
           
           // 立即显示流式内容（移除节流）
           const displayContent = fullContent.replace(/\[METADATA\]([\s\S]*?)\[\/METADATA\]/, '').trim();
@@ -141,9 +201,14 @@ const AntdChatInterface: React.FC = () => {
                 diagramType: metadata.diagramType as any,
               });
             }
+            
+            updateThoughtStep('完成生成', '图表已成功生成并准备应用', 'success');
           } catch (e) {
             console.warn('元数据解析失败:', e);
+            updateThoughtStep('处理结果', '图表元数据解析失败', 'error');
           }
+        } else {
+          updateThoughtStep('完成生成', '文本回复已生成', 'success');
         }
 
         return {
@@ -154,6 +219,7 @@ const AntdChatInterface: React.FC = () => {
       } catch (error) {
         console.error('Agent 请求失败:', error);
         antdMessage.error(`请求失败: ${error instanceof Error ? error.message : '未知错误'}`);
+        updateThoughtStep('处理失败', '请求处理过程中出现错误', 'error');
         throw error;
       } finally {
         setIsGenerating(false);
@@ -169,7 +235,7 @@ const AntdChatInterface: React.FC = () => {
   });
 
   // 处理消息发送
-  const handleSend = useCallback(async (content: string) => {
+  const handleSend = useMemoizedFn(async (content: string) => {
     if (!content.trim()) return;
     
     try {
@@ -178,17 +244,17 @@ const AntdChatInterface: React.FC = () => {
       console.error('发送消息失败:', error);
       antdMessage.error('发送失败，请重试');
     }
-  }, [onRequest]);
+  });
 
   // 渲染消息内容
-  const renderMessageContent = useCallback((message: ExtendedMessage) => {
+  const renderMessageContent = useMemoizedFn((message: ExtendedMessage) => {
     // 添加空值检查
     if (!message.content) {
       return <div className="text-gray-400 italic">消息内容为空</div>;
     }
     
-    const cleanContent = message.content.replace(/\[METADATA\][\s\S]*?\[\/METADATA\]/g, '').trim();
-    const isDiagramMessage = message.content.includes('[METADATA]') && message.content.includes('"type":"diagram"');
+    const content = message.content;
+    const isDiagramMessage = message.metadata?.type === 'diagram';
 
     // 图表消息特殊渲染
     if (isDiagramMessage) {
@@ -201,7 +267,7 @@ const AntdChatInterface: React.FC = () => {
           <div 
             className="text-gray-700 leading-relaxed mb-3"
             dangerouslySetInnerHTML={{ 
-              __html: cleanContent
+              __html: content
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/`([^`]+)`/g, '<code style="background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>')
@@ -236,7 +302,7 @@ const AntdChatInterface: React.FC = () => {
       <div 
         className="text-gray-700 leading-relaxed whitespace-pre-wrap"
         dangerouslySetInnerHTML={{ 
-          __html: cleanContent
+          __html: content
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
             .replace(/`([^`]+)`/g, '<code style="background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>')
@@ -244,7 +310,7 @@ const AntdChatInterface: React.FC = () => {
         }}
       />
     );
-  }, []);
+  });
 
   // 快速操作
   const quickActions = useMemo(() => [
@@ -254,30 +320,110 @@ const AntdChatInterface: React.FC = () => {
     { key: 'example4', label: '数据库ER图设计', prompt: '数据库ER图设计' }
   ], []);
 
+  // 获取图标
+  const getProviderIcon = (provider: string) => {
+    switch (provider) {
+      case 'volcengine':
+        return '🌋';
+      case 'openai':
+        return '🤖';
+      case 'claude':
+        return '🧠';
+      case 'azure':
+        return '☁️';
+      case 'gemini':
+        return '💎';
+      case 'qwen':
+        return '🌟';
+      default:
+        return '⚙️';
+    }
+  };
+
   // 清空对话
-  const handleClearChat = useCallback(() => {
+  const handleClearChat = useMemoizedFn(() => {
     setMessages([]);
+    setThoughtSteps([]);
+    setShowThoughtChain(false);
     antdMessage.success('对话已清空');
-  }, [setMessages]);
+  });
+
+  // 更新思考链步骤
+  const updateThoughtStep = useMemoizedFn((title: string, description: string, status: 'pending' | 'success' | 'error') => {
+    setThoughtSteps(prev => {
+      const existingIndex = prev.findIndex(step => step.title === title);
+      const newStep = {
+        title,
+        description,
+        status,
+        timestamp: new Date().toLocaleTimeString('zh-CN')
+      };
+      
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = newStep;
+        return updated;
+      } else {
+        return [...prev, newStep];
+      }
+    });
+  });
+
+  // 重置思考链
+  const resetThoughtChain = useMemoizedFn(() => {
+    setThoughtSteps([]);
+    setShowThoughtChain(true);
+  });
 
   // 转换消息格式为 Ant Design X 格式
   const conversationItems = useMemo(() => {
-    console.log('当前消息列表:', messages); // 调试日志
     return messages.filter(msg => msg && (msg as any).content).map((msg, index) => {
-      const message = msg as any;
-      console.log('渲染消息:', message); // 调试日志
+      const xchatMessage = msg as any;
+
+      let extendedMessage: ExtendedMessage;
+
+      if (xchatMessage.role === 'user') {
+        extendedMessage = {
+          id: xchatMessage.id,
+          role: 'user',
+          content: xchatMessage.content,
+          createAt: xchatMessage.createAt || Date.now(),
+        };
+      } else {
+        // Assistant message from useXAgent can have content as object
+        let assistantContentValue: string;
+        let assistantMetadata: DiagramMetadata | undefined;
+
+        if (typeof xchatMessage.content === 'string') {
+          assistantContentValue = xchatMessage.content;
+          assistantMetadata = undefined;
+        } else {
+          const contentObj = xchatMessage.content as { content: string; metadata?: DiagramMetadata };
+          assistantContentValue = contentObj.content;
+          assistantMetadata = contentObj.metadata;
+        }
+
+        extendedMessage = {
+          id: xchatMessage.id,
+          role: 'assistant',
+          content: assistantContentValue,
+          metadata: assistantMetadata,
+          createAt: xchatMessage.createAt || Date.now(),
+        };
+      }
+
       return (
         <Bubble
-          key={message.id || `msg-${index}-${Date.now()}`}
-          placement={message.role === 'user' ? 'end' : 'start'}
-          content={renderMessageContent(message as ExtendedMessage)}
-          avatar={message.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
+          key={extendedMessage.id || `msg-${index}-${Date.now()}`}
+          placement={extendedMessage.role === 'user' ? 'end' : 'start'}
+          content={renderMessageContent(extendedMessage)}
+          avatar={extendedMessage.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
           styles={{
             content: {
-              background: message.role === 'user' ? '#1677ff' : '#ffffff',
-              color: message.role === 'user' ? '#ffffff' : '#000000',
-              maxWidth: '80%'
-            }
+              background: extendedMessage.role === 'user' ? '#1677ff' : '#ffffff',
+              color: extendedMessage.role === 'user' ? '#ffffff' : '#000000',
+              maxWidth: '80%',
+            },
           }}
         />
       );
@@ -297,6 +443,19 @@ const AntdChatInterface: React.FC = () => {
         </div>
 
         <Space>
+          {/* 模型选择 */}
+          <Select
+            value={selectedModel}
+            onChange={setSelectedModel}
+            size="small"
+            style={{ width: 160 }}
+            placeholder="选择AI模型"
+            disabled={isGenerating}
+            options={availableModels.map(model => ({
+              value: model.model,
+              label: `${getProviderIcon(model.provider)} ${model.displayName}`,
+            }))}
+          />
           <Select
             value={currentDiagram.diagramType}
             onChange={(value) => {
@@ -310,6 +469,22 @@ const AntdChatInterface: React.FC = () => {
             style={{ width: 140 }}
             options={diagramTypeOptions}
           />
+          <Tooltip title="添加自定义模型">
+            <Button 
+              type="text" 
+              icon={<PlusOutlined />} 
+              size="small"
+              onClick={() => setShowAddCustomModel(true)}
+            />
+          </Tooltip>
+          <Tooltip title="显示思考过程">
+            <Button 
+              type={showThoughtChain ? 'primary' : 'text'}
+              icon={<RobotOutlined />} 
+              size="small"
+              onClick={() => setShowThoughtChain(!showThoughtChain)}
+            />
+          </Tooltip>
           <Tooltip title="清空对话">
             <Button 
               type="text" 
@@ -419,6 +594,21 @@ const AntdChatInterface: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* 思考链 */}
+         {showThoughtChain && thoughtSteps.length > 0 && (
+           <div className="border-t border-gray-100 p-4 bg-gray-50">
+             <ThoughtChain
+               items={thoughtSteps.map(step => ({
+                 title: step.title,
+                 description: step.description,
+                 status: step.status,
+                 extra: step.timestamp
+               }))}
+               collapsible
+             />
+           </div>
+         )}
 
         {/* 输入区域 */}
         <div className="border-t border-gray-100 p-4 bg-white">

@@ -15,15 +15,37 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // 获取用户最新消息
+    // 获取用户最新消息和对话历史
     // 处理两种格式：直接字符串数组或包含role/content的对象数组
     let userMessage = '';
+    const conversationHistory = [];
+    
     if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (typeof lastMessage === 'string') {
-        userMessage = lastMessage;
-      } else if (lastMessage && typeof lastMessage === 'object' && lastMessage.content) {
-        userMessage = lastMessage.content;
+      // 转换消息格式为统一的对话历史
+      for (const msg of messages) {
+        if (typeof msg === 'string') {
+          // 如果是字符串格式，假设为用户消息
+          if (msg === messages[messages.length - 1]) {
+            userMessage = msg;
+          } else {
+            conversationHistory.push({ role: 'user', content: msg });
+          }
+        } else if (msg && typeof msg === 'object') {
+          // 如果是对象格式，包含 role 和 content
+          if (msg.role && msg.content) {
+            conversationHistory.push({ role: msg.role, content: msg.content });
+            if (msg === messages[messages.length - 1]) {
+              userMessage = msg.content;
+            }
+          } else if (msg.content) {
+            // 如果没有 role，根据位置推断
+            if (msg === messages[messages.length - 1]) {
+              userMessage = msg.content;
+            } else {
+              conversationHistory.push({ role: 'user', content: msg.content });
+            }
+          }
+        }
       }
     }
     
@@ -50,14 +72,16 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // 获取或创建 Agent 实例
+    // 获取或创建 Agent 实例，启用内存功能
     let agent = agentManager.getAgent(model);
     if (!agent) {
-      // 使用默认配置注册新Agent
+      // 直接使用前端传来的model值作为modelName，前端已经处理了模型映射
+      // 使用默认配置注册新Agent，启用内存功能
       agentManager.registerAgent(model, {
         apiKey: apiKey,
         provider: 'volcengine' as const,
-        modelName: model
+        modelName: model, // 直接使用model参数值
+        enableMemory: true
       });
       agent = agentManager.getAgent(model);
       
@@ -68,6 +92,13 @@ export async function POST(req: NextRequest) {
           { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
       }
+    }
+    
+    // 注入对话历史到 Agent
+    if (conversationHistory.length > 0 && agent) {
+      // 清空现有历史并注入新的对话历史
+      agent.clearHistory();
+      agent.setConversationHistory(conversationHistory);
     }
     
     // 检查是否支持流式输出

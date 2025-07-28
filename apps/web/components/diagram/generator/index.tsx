@@ -6,6 +6,7 @@ import { Bot } from 'lucide-react';
 import { motion } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
 import { useIsAIAssistantOpen, useIsInputPanelOpen, useSidebarOpen, useUIActions } from '@/lib/stores/hooks';
+import { useModelManager } from '@/lib/hooks/useModelManager';
 import AIAssistant from './AIAssistant';
 import CodeEditor from './CodeEditor';
 import ConversationalDiagramPanel from './ConversationalDiagramPanel';
@@ -20,8 +21,14 @@ const DiagramGenerator: React.FC = () => {
   const isInputPanelOpen = useIsInputPanelOpen();
   const isAIAssistantOpen = useIsAIAssistantOpen();
   const { toggleInputPanel, toggleAIAssistant } = useUIActions();
+  const { loadModels } = useModelManager();
   const [activePanel, setActivePanel] = useState<'input' | 'ai' | 'conversation'>('conversation');
   const [isFloatWindowMinimized, setIsFloatWindowMinimized] = useState(false);
+
+  // 加载AI模型
+  useEffect(() => {
+    loadModels();
+  }, [loadModels]);
 
   // 处理快捷键
   useEffect(() => {

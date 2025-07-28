@@ -2,9 +2,9 @@
  * Zustand 应用状态管理
  * 从 Jotai 迁移到 Zustand，保持功能一致性
  */
+import type { AIModelConfig, AIResponse, DiagramData, DirectCallConfig } from '@/types/types';
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { AIModelConfig, AIResponse, DiagramData, DirectCallConfig } from '../shared/types';
 
 interface AppState {
   // === 基础状态 ===
@@ -178,8 +178,8 @@ export const useAppStore = create<AppStore>()(
       if (!currentSelectedModel || !models.find(m => m.name === currentSelectedModel)) {
         const firstModel = models[0];
         if (firstModel) {
-          set({ selectedModel: firstModel.name });
-          console.log(`自动选择模型: ${firstModel.name}`);
+          set({ selectedModel: firstModel.model });
+          console.log(`自动选择模型: ${firstModel.displayName}`);
         }
       }
     },

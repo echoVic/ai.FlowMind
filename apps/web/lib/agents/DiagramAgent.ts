@@ -74,6 +74,18 @@ export class QwenLangChainProvider extends BaseChatModel {
     runManager?: CallbackManagerForLLMRun
   ): Promise<ChatResult> {
     try {
+      console.log('Volcengine API Configuration:', {
+        endpoint: this.endpoint,
+        modelName: this.modelName,
+        hasApiKey: !!this.apiKey,
+        hasValidModel: this.modelName.startsWith('ep-') || this.modelName.includes('doubao') || this.modelName.includes('deepseek')
+      });
+      
+      // 验证模型名称格式
+      if (!this.modelName.startsWith('ep-') && !this.modelName.includes('doubao') && !this.modelName.includes('deepseek')) {
+        console.warn('模型名称可能不正确，火山引擎模型通常以 ep- 开头，例如: ep-20250617131345-rshkp');
+      }
+      
       const openaiMessages = messages.map(msg => ({
         role: msg._getType() === 'system' ? 'system' : 
               msg._getType() === 'human' ? 'user' : 'assistant',
@@ -125,6 +137,18 @@ export class QwenLangChainProvider extends BaseChatModel {
     runManager?: CallbackManagerForLLMRun
   ): AsyncGenerator<ChatGenerationChunk> {
     try {
+      console.log('Volcengine API Configuration:', {
+        endpoint: this.endpoint,
+        modelName: this.modelName,
+        hasApiKey: !!this.apiKey,
+        hasValidModel: this.modelName.startsWith('ep-') || this.modelName.includes('doubao') || this.modelName.includes('deepseek')
+      });
+      
+      // 验证模型名称格式
+      if (!this.modelName.startsWith('ep-') && !this.modelName.includes('doubao') && !this.modelName.includes('deepseek')) {
+        console.warn('模型名称可能不正确，火山引擎模型通常以 ep- 开头，例如: ep-20250617131345-rshkp');
+      }
+      
       const openaiMessages = messages.map(msg => ({
         role: msg._getType() === 'system' ? 'system' : 
               msg._getType() === 'human' ? 'user' : 'assistant',
@@ -209,10 +233,22 @@ export class VolcengineLangChainProvider extends BaseChatModel {
     super({});
     
     this.apiKey = config.apiKey;
-    this.endpoint = config.endpoint || 'https://ark.cn-beijing.volces.com/api/v3';
+    this.endpoint = config.endpoint || process.env.NEXT_PUBLIC_ARK_ENDPOINT || 'https://ark.cn-beijing.volces.com/api/v3';
     this.modelName = config.modelName || process.env.NEXT_PUBLIC_ARK_MODEL_NAME || 'ep-20250617131345-rshkp';
     this.temperature = config.temperature || 0.7;
     this.maxTokens = config.maxTokens || 2048;
+    
+    if (!this.apiKey) {
+      throw new Error('Volcengine API key is required');
+    }
+    if (!this.modelName) {
+      throw new Error('Volcengine model name is required');
+    }
+    
+    // 确保 endpoint 以 /v3 结尾，用于火山引擎 API
+    if (!this.endpoint.endsWith('/v3') && !this.endpoint.endsWith('/v3/')) {
+      this.endpoint = this.endpoint.replace(/\/?$/, '/v3');
+    }
   }
 
   async _generate(
@@ -242,7 +278,22 @@ export class VolcengineLangChainProvider extends BaseChatModel {
       });
 
       if (!response.ok) {
-        throw new Error(`Volcengine API error: ${response.status}`);
+        const errorText = await response.text().catch(() => 'No error details available');
+        let errorMessage = `Volcengine API error: ${response.status}`;
+        
+        if (response.status === 404) {
+          errorMessage += ' - Model not found or endpoint incorrect. Please check your model name and endpoint configuration.';
+        } else if (response.status === 401) {
+          errorMessage += ' - Authentication failed. Please check your API key.';
+        } else if (response.status === 400) {
+          errorMessage += ' - Bad request. Please check your request parameters.';
+        }
+        
+        if (errorText) {
+          errorMessage += ` Details: ${errorText}`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
@@ -294,7 +345,22 @@ export class VolcengineLangChainProvider extends BaseChatModel {
       });
 
       if (!response.ok) {
-        throw new Error(`Volcengine API error: ${response.status}`);
+        const errorText = await response.text().catch(() => 'No error details available');
+        let errorMessage = `Volcengine API error: ${response.status}`;
+        
+        if (response.status === 404) {
+          errorMessage += ' - Model not found or endpoint incorrect. Please check your model name and endpoint configuration.';
+        } else if (response.status === 401) {
+          errorMessage += ' - Authentication failed. Please check your API key.';
+        } else if (response.status === 400) {
+          errorMessage += ' - Bad request. Please check your request parameters.';
+        }
+        
+        if (errorText) {
+          errorMessage += ` Details: ${errorText}`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const reader = response.body?.getReader();
@@ -424,10 +490,25 @@ export class DiagramAgent {
   }
 
   /**
-   * 初始化系统提示
+   * 设置对话历史
    */
-  private initializeSystemPrompt(): void {
-    const systemPrompt = `你是一个专业的架构图生成专家。请根据用户的描述生成高质量的Mermaid代码。
+  setConversationHistory(history: Array<{role: string, content: string}>): void {
+    this.conversationHistory = [new SystemMessage(this.getSystemPrompt())];
+    
+    for (const msg of history) {
+      if (msg.role === 'user') {
+        this.conversationHistory.push(new HumanMessage(msg.content));
+      } else if (msg.role === 'assistant') {
+        this.conversationHistory.push(new AIMessage(msg.content));
+      }
+    }
+  }
+
+  /**
+   * 获取系统提示
+   */
+  private getSystemPrompt(): string {
+    return `你是一个专业的架构图生成专家。请根据用户的描述生成高质量的Mermaid代码。
 
 生成规则：
 1. 严格按照Mermaid语法规范生成代码
@@ -459,8 +540,13 @@ export class DiagramAgent {
   "suggestions": ["优化建议1", "优化建议2"],
   "diagramType": "图表类型"
 }`;
+  }
 
-    this.conversationHistory = [new SystemMessage(systemPrompt)];
+  /**
+   * 初始化系统提示
+   */
+  private initializeSystemPrompt(): void {
+    this.conversationHistory = [new SystemMessage(this.getSystemPrompt())];
   }
 
   /**

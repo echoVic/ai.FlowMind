@@ -2,8 +2,8 @@
  * Zustand 选择器和 Action Hooks
  * 提供细粒度的状态选择和操作，优化性能
  */
+import type { AIModelConfig, DiagramData } from '@/types/types';
 import { useAppStore } from './appStore';
-import type { AIModelConfig, DiagramData } from '../shared/types';
 
 // === 基础状态选择器 ===
 export const useCurrentDiagram = () => useAppStore(state => state.currentDiagram);
