@@ -38,6 +38,8 @@ FlowMind 是一个基于 React 和 AI 的智能流程图生成应用，用户可
 - ✅ 重构前端调用逻辑
 - ✅ 移除冗余的服务端代码
 - ✅ 更新构建配置
+- ✅ 集成 Ant Design 组件库
+- ✅ 添加 CodeMirror 编辑器支持
 - ✅ 更新文档
 
 ### 简化后的架构图
@@ -71,9 +73,10 @@ FlowMind 是一个基于 React 和 AI 的智能流程图生成应用，用户可
 ### Key Components
 - `DiagramGenerator/index.tsx` - Main layout component with three panels
 - `InputPanel.tsx` - Natural language input for diagram generation
-- `CodeEditor/index.tsx` - Monaco-based Mermaid code editor
+- `CodeEditor/index.tsx` - CodeMirror + Monaco 双编辑器支持
 - `DiagramPreview/index.tsx` - Live Mermaid diagram preview
 - `AIAssistant/index.tsx` - AI interaction panel
+- `ConversationalDiagramPanel/` - 基于 Ant Design X 的对话式界面
 - `useDiagramGenerator.ts` - 核心 Hook，已重构为使用 Agent 系统
 
 ### State Management
@@ -160,10 +163,11 @@ NEXT_PUBLIC_DEFAULT_MAX_TOKENS=2048
 - React types included
 
 ### Styling
-- 纯 Tailwind CSS 实现，无第三方UI库依赖
+- Tailwind CSS + Ant Design 组件库
 - Dark mode support via `darkMode: 'class'`
 - Responsive three-panel layout
-- 所有组件使用原生HTML元素配合Tailwind样式
+- 结合 Ant Design 组件和 Tailwind 样式
+- 支持 Ant Design X 聊天组件
 
 ### LangChain.js 集成
 - 版本: `@langchain/core: ^0.3.0`

@@ -5,7 +5,8 @@ import { NextRequest } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { messages, model, diagramType } = body;
+    console.log('Received request body:', JSON.stringify(body, null, 2));
+    const { messages, model, diagramType, userId } = body;
     
     // 验证必需字段
     if (!messages || !Array.isArray(messages)) {
@@ -16,7 +17,17 @@ export async function POST(req: NextRequest) {
     }
     
     // 获取用户最新消息
-    const userMessage = messages[messages.length - 1]?.content;
+    // 处理两种格式：直接字符串数组或包含role/content的对象数组
+    let userMessage = '';
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (typeof lastMessage === 'string') {
+        userMessage = lastMessage;
+      } else if (lastMessage && typeof lastMessage === 'object' && lastMessage.content) {
+        userMessage = lastMessage.content;
+      }
+    }
+    
     if (!userMessage) {
       return new Response(
         JSON.stringify({ error: 'No user message provided' }),

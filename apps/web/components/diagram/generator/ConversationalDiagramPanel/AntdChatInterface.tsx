@@ -230,10 +230,10 @@ const AntdChatInterface: React.FC = () => {
 
   // 快速操作
   const quickActions = useMemo(() => [
-    { key: 'optimize', label: '优化图表', prompt: '请优化当前图表的布局和视觉效果' },
-    { key: 'simplify', label: '简化流程', prompt: '请简化当前图表，突出核心流程' },
-    { key: 'detail', label: '添加细节', prompt: '请为当前图表添加更多细节和说明' },
-    { key: 'style', label: '改善样式', prompt: '请改善当前图表的样式和配色' }
+    { key: 'example1', label: '用户注册登录流程', prompt: '用户注册登录流程' },
+    { key: 'example2', label: '微服务架构设计', prompt: '微服务架构设计' },
+    { key: 'example3', label: '订单处理流程', prompt: '订单处理流程' },
+    { key: 'example4', label: '数据库ER图设计', prompt: '数据库ER图设计' }
   ], []);
 
   // 清空对话

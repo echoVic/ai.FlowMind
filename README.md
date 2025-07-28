@@ -4,11 +4,12 @@
   <h3>🤖 基于 AI 的智能流程图生成工具</h3>
   <p>通过自然语言描述，快速创建专业的 Mermaid 图表</p>
   
-  [![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+  [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org/)
   [![React](https://img.shields.io/badge/React-18-blue?style=flat-square&logo=react)](https://reactjs.org/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
   [![LangChain](https://img.shields.io/badge/LangChain.js-0.3-green?style=flat-square)](https://js.langchain.com/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
+  [![Zustand](https://img.shields.io/badge/Zustand-5.0-orange?style=flat-square)](https://zustand-demo.pmnd.rs/)
 </div>
 
 ## ✨ 主要特性
@@ -33,8 +34,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/echoVic/ai.FlowMind.git
-cd FlowMind
+git clone https://github.com/echoVic/flow-ai.git
+cd flow-ai
 
 # 安装依赖
 pnpm install
@@ -110,14 +111,15 @@ NEXT_PUBLIC_DEFAULT_MAX_TOKENS=2048
 
 ### 核心技术栈
 
-- **前端框架**: Next.js 14 (App Router)
+- **前端框架**: Next.js 15 (App Router)
 - **UI框架**: React 18 + TypeScript
 - **样式系统**: Tailwind CSS
-- **状态管理**: Jotai
+- **状态管理**: Zustand
 - **AI集成**: LangChain.js
 - **代码编辑**: Monaco Editor
 - **图表渲染**: Mermaid.js
 - **动画效果**: Framer Motion
+- **工具库**: ahooks (React Hooks)
 
 ### 架构设计
 

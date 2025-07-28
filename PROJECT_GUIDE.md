@@ -41,25 +41,25 @@ FlowMind 是一个基于 AI 的智能流程图生成工具，允许用户通过�
 
 ### 前端技术栈
 
-- **框架**: Next.js 14 (App Router) + React 18
+- **框架**: Next.js 15 (App Router) + React 18
 - **语言**: TypeScript
-- **样式**: Tailwind CSS
+- **样式**: Tailwind CSS + Ant Design
 - **状态管理**: Zustand
 - **AI集成**: LangChain.js
-- **代码编辑**: Monaco Editor
+- **代码编辑**: CodeMirror + Monaco Editor
 - **图表渲染**: Mermaid.js
 - **动画效果**: Framer Motion
-- **UI组件**: Lucide React 图标库
+- **UI组件**: Ant Design + Lucide React 图标库
 - **工具库**: ahooks（React Hooks 库）
 
 ### 后端技术栈
 
-- **协议**: Model Context Protocol (MCP)
-- **语言**: TypeScript
-- **框架**: @modelcontextprotocol/sdk
-- **图表处理**: Mermaid.js 解析器
-- **构建工具**: tsup
-- **测试框架**: Vitest
+**注意**: 项目已完全重构为纯前端架构，无需后端服务器。
+
+- **AI集成**: LangChain.js 直接调用 AI 提供商 API
+- **数据存储**: 浏览器本地存储 (localStorage)
+- **状态管理**: Zustand 全局状态管理
+- **API调用**: 直接前端调用，无中间服务器
 
 ### 开发工具
 
@@ -68,24 +68,33 @@ FlowMind 是一个基于 AI 的智能流程图生成工具，允许用户通过�
 - **代码检查**: ESLint
 - **类型检查**: TypeScript
 
+### 核心依赖
+
+- **AI 集成**: `@langchain/core`, `@langchain/openai`, `@langchain/anthropic`
+- **UI 组件**: `antd`, `@ant-design/x`, `lucide-react`
+- **代码编辑**: `@uiw/react-codemirror`, `codemirror-lang-mermaid`
+- **图表渲染**: `mermaid`
+- **状态管理**: `zustand`
+- **工具库**: `ahooks`, `framer-motion`
+
 ## 4. 项目目录结构
 
 ```
 flow-ai/
 ├── apps/
 │   └── web/                 # 前端应用
-│       ├── app/             # 路由组件
-│       ├── src/             # 业务逻辑
-│       ├── public/          # 静态资源
-│       ├── next.config.js  # Next.js 配置
-│       └── package.json    # 前端依赖
-├── packages/
-│   └── mcp-server/         # MCP 后端服务
-│       ├── src/            # 源代码
-│       ├── __tests__/      # 测试文件
-│       └── package.json    # 后端依赖
-├── package.json            # 根依赖
-└── turbo.json             # Turbo 配置
+│       ├── app/             # Next.js App Router 路由
+│       ├── components/      # React 组件
+│       ├── lib/             # 工具库和服务
+│       │   ├── agents/      # AI Agent 相关
+│       │   ├── hooks/       # 自定义 Hooks
+│       │   ├── services/    # 业务服务
+│       │   └── stores/      # Zustand 状态管理
+│       ├── types/           # TypeScript 类型定义
+│       ├── next.config.js   # Next.js 配置
+│       └── package.json     # 前端依赖
+├── package.json             # 根依赖
+└── turbo.json              # Turbo 配置
 ```
 
 ## 5. 模块功能说明
