@@ -5,8 +5,8 @@
 import { ChatAnthropic } from "@langchain/anthropic";
 import { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
 import { BaseChatModel, BaseChatModelCallOptions } from "@langchain/core/language_models/chat_models";
-import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { ChatResult } from "@langchain/core/outputs";
+import { AIMessage, AIMessageChunk, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { ChatGenerationChunk, ChatResult } from "@langchain/core/outputs";
 import { ChatOpenAI } from "@langchain/openai";
 import { z } from "zod";
 
@@ -109,13 +109,85 @@ export class QwenLangChainProvider extends BaseChatModel {
           }
         ]
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Qwen provider error: ${error.message}`);
     }
   }
 
   _llmType(): string {
     return 'qwen';
+  }
+
+  // 添加流式支持
+  async *_streamResponseChunks(
+    messages: BaseMessage[],
+    options: BaseChatModelCallOptions,
+    runManager?: CallbackManagerForLLMRun
+  ): AsyncGenerator<ChatGenerationChunk> {
+    try {
+      const openaiMessages = messages.map(msg => ({
+        role: msg._getType() === 'system' ? 'system' : 
+              msg._getType() === 'human' ? 'user' : 'assistant',
+        content: msg.content as string
+      }));
+
+      const response = await fetch(`${this.endpoint}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.modelName,
+          messages: openaiMessages,
+          temperature: (options as any).temperature || this.temperature,
+          max_tokens: (options as any).maxTokens || this.maxTokens,
+          stream: true, // 启用流式输出
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Qwen API error: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('无法获取响应流');
+      }
+
+      const decoder = new TextDecoder();
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(line => line.trim());
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') return;
+            
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                yield new ChatGenerationChunk({
+                  text: content,
+                  message: new AIMessageChunk({ content }),
+                  generationInfo: {}
+                });
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      throw new Error(`Qwen streaming error: ${error.message}`);
+    }
   }
 }
 
@@ -184,13 +256,85 @@ export class VolcengineLangChainProvider extends BaseChatModel {
           }
         ]
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Volcengine provider error: ${error.message}`);
     }
   }
 
   _llmType(): string {
     return 'volcengine';
+  }
+
+  // 添加流式支持
+  async *_streamResponseChunks(
+    messages: BaseMessage[],
+    options: BaseChatModelCallOptions,
+    runManager?: CallbackManagerForLLMRun
+  ): AsyncGenerator<ChatGenerationChunk> {
+    try {
+      const openaiMessages = messages.map(msg => ({
+        role: msg._getType() === 'system' ? 'system' : 
+              msg._getType() === 'human' ? 'user' : 'assistant',
+        content: msg.content as string
+      }));
+
+      const response = await fetch(`${this.endpoint}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.modelName,
+          messages: openaiMessages,
+          temperature: (options as any).temperature || this.temperature,
+          max_tokens: (options as any).maxTokens || this.maxTokens,
+          stream: true, // 启用流式输出
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Volcengine API error: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('无法获取响应流');
+      }
+
+      const decoder = new TextDecoder();
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(line => line.trim());
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') return;
+            
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                yield new ChatGenerationChunk({
+                  text: content,
+                  message: new AIMessageChunk({ content }),
+                  generationInfo: {}
+                });
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      throw new Error(`Volcengine streaming error: ${error.message}`);
+    }
   }
 }
 
@@ -211,21 +355,25 @@ export class DiagramAgent {
   }
 
   /**
-   * 生成图表
+   * 生成图表 (支持流式输出)
    */
-  async generateDiagram(request: DiagramGenerationRequest): Promise<DiagramGenerationResult> {
+  async generateDiagram(
+    request: DiagramGenerationRequest, 
+    onStream?: (chunk: string) => void
+  ): Promise<DiagramGenerationResult> {
     try {
       console.log('DiagramAgent: 开始生成图表');
       console.log('- 描述:', request.description);
       console.log('- 图表类型:', request.diagramType);
       console.log('- 现有代码:', request.existingCode ? '存在' : '不存在');
+      console.log('- 流式输出:', onStream ? '启用' : '禁用');
 
       // 构建提示消息
       const userPrompt = this.buildGenerationPrompt(request);
       const messages = this.buildMessages(userPrompt);
 
       // 调用 AI 模型
-      const response = await this.invokeModel(messages);
+      const response = await this.invokeModel(messages, onStream);
       
       // 解析响应
       const result = this.parseResponse(response, request);
@@ -238,7 +386,7 @@ export class DiagramAgent {
       console.log('DiagramAgent: 图表生成完成');
       return result;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('DiagramAgent: 图表生成失败', error);
       throw new Error(`图表生成失败: ${error.message}`);
     }
@@ -364,26 +512,67 @@ ${request.existingCode}
   }
 
   /**
-   * 调用 AI 模型
+   * 调用 AI 模型 (支持流式输出)
    */
-  private async invokeModel(messages: BaseMessage[]): Promise<string> {
+  private async invokeModel(messages: BaseMessage[], onStream?: (chunk: string) => void): Promise<string> {
     const retryCount = this.config.retryCount || 3;
     
     for (let i = 0; i < retryCount; i++) {
       try {
-        const response = await this.model.invoke(messages);
-        return response.content as string;
-      } catch (error) {
-        if (i === retryCount - 1) {
-          throw error;
+        // 如果支持流式输出且提供了回调函数
+        if (onStream && this.supportsStreaming()) {
+          return await this.invokeModelStream(messages, onStream);
         }
         
+        // 非流式调用
+        const response = await this.model.invoke(messages);
+        return response.content as string;
+        
+      } catch (error: any) {
         console.warn(`DiagramAgent: 调用失败，重试 ${i + 1}/${retryCount}`, error.message);
         await this.sleep(1000 * (i + 1));
       }
     }
     
     throw new Error('AI 模型调用失败');
+  }
+
+  /**
+   * 流式调用 AI 模型
+   */
+  private async invokeModelStream(messages: BaseMessage[], onStream: (chunk: string) => void): Promise<string> {
+    let fullContent = '';
+    
+    try {
+      const stream = await this.model.stream(messages);
+      
+      for await (const chunk of stream) {
+        const content = chunk.content as string;
+        if (content) {
+          fullContent += content;
+          onStream(content);
+        }
+      }
+      
+      return fullContent;
+    } catch (error: any) {
+      console.error('DiagramAgent: 流式调用失败', error);
+      // 降级到非流式调用
+      const response = await this.model.invoke(messages);
+      return response.content as string;
+    }
+  }
+
+  /**
+   * 检查模型是否支持流式输出
+   */
+  public supportsStreaming(): boolean {
+    const modelType = this.model._llmType();
+    // OpenAI、Anthropic、火山引擎、Qwen 都支持流式输出
+    return modelType === 'openai' || 
+           modelType === 'anthropic' || 
+           modelType === 'volcengine' || 
+           modelType === 'qwen';
   }
 
   /**
@@ -408,7 +597,7 @@ ${request.existingCode}
             const validated = this.validateAndCleanResponse(parsed);
             return this.buildResult(validated, request);
           } catch (parseError) {
-            console.log('DiagramAgent: JSON解析失败，尝试修复:', parseError.message);
+            console.log('DiagramAgent: JSON解析失败，尝试修复:', (parseError as Error).message);
             
             // 尝试修复JSON字符串
             const fixedJsonString = this.fixJsonString(jsonString);
@@ -463,7 +652,7 @@ ${request.existingCode}
 
       throw new Error('无法识别响应格式');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('DiagramAgent: 响应解析失败', error);
       
       // 提供默认响应
@@ -521,29 +710,6 @@ ${request.existingCode}
         }
       } catch (error2) {
         console.log('DiagramAgent: 复杂修复也失败');
-      }
-      
-      // 方法3：最后的兜底方案 - 尝试重新构建JSON
-      try {
-        // 提取字段值（使用更宽松的匹配）
-        const mermaidCodeMatch = jsonString.match(/"mermaidCode"\s*:\s*"([\s\S]*?)(?=",\s*"explanation"|"})/);
-        const explanationMatch = jsonString.match(/"explanation"\s*:\s*"([^"]*(?:\\.[^"]*)*)"(?=\s*,|\s*})/);
-        const suggestionsMatch = jsonString.match(/"suggestions"\s*:\s*\[([\s\S]*?)\](?=\s*,|\s*})/);
-        const diagramTypeMatch = jsonString.match(/"diagramType"\s*:\s*"([^"]*)"(?=\s*,|\s*})/);
-        
-        if (mermaidCodeMatch && explanationMatch && diagramTypeMatch) {
-          // 重新构建JSON
-          const cleanedJson = {
-            mermaidCode: mermaidCodeMatch[1],
-            explanation: explanationMatch[1],
-            suggestions: suggestionsMatch ? JSON.parse(`[${suggestionsMatch[1]}]`) : [],
-            diagramType: diagramTypeMatch[1]
-          };
-          
-          return JSON.stringify(cleanedJson);
-        }
-      } catch (error3) {
-        console.log('DiagramAgent: 重构JSON也失败');
       }
       
       // 如果所有方法都失败，返回原始字符串

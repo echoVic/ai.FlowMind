@@ -14,6 +14,7 @@
 - ✨ 添加对话式图表生成面板 `ConversationalDiagramPanel`
 - ✨ 新增诊断面板 `DiagnosticPanel` 用于调试和错误诊断
 - ✨ 添加验证面板 `ValidationPanel` 用于图表语法验证
+- ⚡ 为 DiagramAgent 添加流式输出支持（OpenAI 和 Anthropic 模型）
 
 ### 改进
 - 🎨 优化三面板布局设计，支持更灵活的面板切换
@@ -27,6 +28,14 @@
 - 📦 添加 `@uiw/react-codemirror` 用于代码编辑
 - 📦 添加 `codemirror-lang-mermaid` 用于 Mermaid 语法高亮
 - 🗑️ 移除不再需要的 `ai` 包依赖，完全基于 LangChain.js 架构
+- ⚡ 实现 LangChain 流式输出支持，提升用户体验
+
+### 流式输出支持状态
+- ✅ **OpenAI 模型**: 支持真正的流式输出
+- ✅ **Anthropic Claude**: 支持真正的流式输出  
+- ❌ **火山引擎豆包**: 暂不支持流式，使用普通调用
+- ❌ **Qwen 通义千问**: 暂不支持流式，使用普通调用
+- 🔄 **自动降级**: 不支持流式的模型会自动降级到普通调用
 
 ## [1.0.0] - 2025-01-09
 

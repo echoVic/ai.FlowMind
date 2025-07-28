@@ -3,11 +3,11 @@
  * 实现"UI 只管界面、后端只管 Agent"的架构
  * 使用 useXAgent 和 useXChat 的标准组合
  */
+import { useInputPanel } from '@/lib/stores/hooks';
 import { ClearOutlined, RobotOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { Bubble, Conversations, Sender, useXAgent, useXChat } from '@ant-design/x';
 import { message as antdMessage, Button, Select, Space, Tooltip, Typography } from 'antd';
 import React, { useCallback, useMemo, useState } from 'react';
-import { useInputPanel } from '@/lib/stores/hooks';
 
 const { Text } = Typography;
 
@@ -37,6 +37,8 @@ const AntdChatInterface: React.FC = () => {
   } = useInputPanel();
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
 
   // 图表类型选项
   const diagramTypeOptions = [
@@ -60,6 +62,11 @@ const AntdChatInterface: React.FC = () => {
   const [agent] = useXAgent<string, { messages: any[] }, { content: string; metadata?: DiagramMetadata }>({
     request: async (info, callbacks) => {
       setIsGenerating(true);
+      setStreamingContent('');
+      
+      // 生成临时消息ID用于流式显示
+      const tempMessageId = `streaming-${Date.now()}`;
+      setStreamingMessageId(tempMessageId);
       
       try {
         const response = await fetch('/api/chat', {
@@ -86,22 +93,36 @@ const AntdChatInterface: React.FC = () => {
 
         let fullContent = '';
         const decoder = new TextDecoder();
+        let lastUpdateTime = Date.now();
 
         // 流式读取响应
+        console.log('开始接收流式响应...');
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            console.log('流式响应结束');
+            break;
+          }
 
           const chunk = decoder.decode(value, { stream: true });
+          console.log('收到流式数据块:', chunk);
           fullContent += chunk;
           
-          // 实时更新内容 - 流式显示，确保内容不为空
+          // 立即显示流式内容（移除节流）
           const displayContent = fullContent.replace(/\[METADATA\]([\s\S]*?)\[\/METADATA\]/, '').trim();
+          
+          // 更新流式内容状态
+          setStreamingContent(displayContent);
+          
+          // 通知 useXChat 更新流式内容
           if (displayContent && callbacks?.onUpdate) {
             callbacks.onUpdate({ content: displayContent });
           }
         }
 
+        // 最终更新 - 确保所有内容都被显示
+        const finalContent = fullContent.replace(/\[METADATA\]([\s\S]*?)\[\/METADATA\]/, '').trim();
+        
         // 解析图表元数据
         const metadataMatch = fullContent.match(/\[METADATA\]([\s\S]*?)\[\/METADATA\]/);
         let metadata: DiagramMetadata | undefined;
@@ -126,23 +147,20 @@ const AntdChatInterface: React.FC = () => {
         }
 
         return {
-          content: content || '响应内容为空',
+          content: content || finalContent || '响应内容为空',
           metadata
         };
 
       } catch (error) {
         console.error('Agent 请求失败:', error);
-        antdMessage.error('请求失败，请重试');
-        
-        // 返回错误信息而不是抛出异常
-        return {
-          content: `请求失败: ${error instanceof Error ? error.message : '未知错误'}`,
-          metadata: undefined
-        };
+        antdMessage.error(`请求失败: ${error instanceof Error ? error.message : '未知错误'}`);
+        throw error;
       } finally {
         setIsGenerating(false);
+        setStreamingContent('');
+        setStreamingMessageId(null);
       }
-    }
+    },
   });
 
   // 配置聊天功能
@@ -243,9 +261,11 @@ const AntdChatInterface: React.FC = () => {
   }, [setMessages]);
 
   // 转换消息格式为 Ant Design X 格式
-  const conversationItems = useMemo(() => 
-    messages.filter(msg => msg && (msg as any).content).map((msg, index) => {
+  const conversationItems = useMemo(() => {
+    console.log('当前消息列表:', messages); // 调试日志
+    return messages.filter(msg => msg && (msg as any).content).map((msg, index) => {
       const message = msg as any;
+      console.log('渲染消息:', message); // 调试日志
       return (
         <Bubble
           key={message.id || `msg-${index}-${Date.now()}`}
@@ -261,7 +281,8 @@ const AntdChatInterface: React.FC = () => {
           }}
         />
       );
-    }), [messages, renderMessageContent]);
+    });
+  }, [messages, renderMessageContent]);
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -311,7 +332,7 @@ const AntdChatInterface: React.FC = () => {
       <div className="flex-1 flex flex-col min-h-0">
         {/* 消息列表 */}
         <div className="flex-1 overflow-y-auto">
-          {conversationItems.length === 0 ? (
+          {conversationItems.length === 0 && !isGenerating ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
               <RobotOutlined className="text-6xl text-gray-300 mb-4" />
               <Text strong className="text-gray-600 text-lg mb-2">AI 架构图助手</Text>
@@ -333,10 +354,49 @@ const AntdChatInterface: React.FC = () => {
               </div>
             </div>
           ) : (
-            <Conversations
-              className="p-4"
-              items={conversationItems}
-            />
+            <div className="p-4">
+              <Conversations items={conversationItems} />
+              
+              {/* 流式内容显示 */}
+              {isGenerating && streamingContent && (
+                <div className="mt-4">
+                  <Bubble
+                    key={streamingMessageId}
+                    placement="start"
+                    content={
+                      <div className="relative">
+                        <div 
+                          className="text-gray-700 leading-relaxed"
+                          dangerouslySetInnerHTML={{ 
+                            __html: streamingContent
+                              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                              .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                              .replace(/`([^`]+)`/g, '<code style="background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>')
+                              .replace(/\n/g, '<br>')
+                          }}
+                        />
+                        <div className="flex items-center mt-2 text-xs text-gray-400">
+                          <div className="animate-pulse flex space-x-1">
+                            <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce"></div>
+                            <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                            <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          </div>
+                          <span className="ml-2">AI正在思考中...</span>
+                        </div>
+                      </div>
+                    }
+                    avatar={<RobotOutlined />}
+                    styles={{
+                      content: {
+                        background: '#f8f9fa',
+                        border: '1px dashed #d1d5db',
+                        maxWidth: '80%'
+                      }
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           )}
         </div>
 

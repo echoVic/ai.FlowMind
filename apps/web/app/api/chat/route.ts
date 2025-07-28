@@ -1,6 +1,5 @@
-import { DiagramAgent } from '../../../lib/agents/DiagramAgent';
-import { agentManager } from '../../../lib/services/AgentManager';
 import { NextRequest } from 'next/server';
+import { agentManager } from '../../../lib/services/AgentManager';
 
 export async function POST(req: NextRequest) {
   try {
@@ -71,27 +70,91 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    // 调用 Agent 生成图表
-    const result = await agent.generateDiagram({
-      description: userMessage,
-      diagramType: diagramType || 'flowchart'
-    });
+    // 检查是否支持流式输出
+    const supportsStreaming = agent.supportsStreaming?.() || false;
     
-    // 构造响应 - 匹配客户端期望的格式
-    const responseContent = result.explanation || '图表已生成';
-    const metadata = {
-      type: 'diagram',
-      diagramCode: result.mermaidCode,
-      diagramType: result.diagramType || diagramType || 'flowchart'
-    };
-    
-    // 按照客户端期望的格式返回：内容 + 元数据标签
-    const formattedResponse = `${responseContent}\n\n[METADATA]${JSON.stringify(metadata)}[/METADATA]`;
-    
-    return new Response(
-      formattedResponse,
-      { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
-    );
+    if (supportsStreaming) {
+      // 创建流式响应
+      const encoder = new TextEncoder();
+      let result: any = null;
+      
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            console.log('开始流式生成图表...');
+            // 使用 AgentManager 的流式生成方法
+            result = await agentManager.generateDiagramStream({
+              description: userMessage,
+              diagramType: diagramType || 'flowchart'
+            }, (chunk: string) => {
+              console.log('发送流式数据块:', chunk);
+              // 实时发送流式数据
+              const encoded = encoder.encode(chunk);
+              controller.enqueue(encoded);
+            }, model);
+            console.log('流式生成完成:', result);
+            
+            // 发送结束标记和元数据
+            const metadata = {
+              type: 'diagram',
+              diagramCode: result.mermaidCode,
+              diagramType: result.diagramType || diagramType || 'flowchart'
+            };
+            
+            const endMarker = `\n[METADATA]${JSON.stringify(metadata)}[/METADATA]`;
+            controller.enqueue(encoder.encode(endMarker));
+            controller.close();
+          } catch (error) {
+            console.error('流式响应错误:', error);
+            const errorMessage = `\n[ERROR]${error instanceof Error ? error.message : '生成失败'}[/ERROR]`;
+            controller.enqueue(encoder.encode(errorMessage));
+            controller.close();
+          }
+        }
+      });
+      
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'Transfer-Encoding': 'chunked',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no', // 禁用Nginx缓冲
+        }
+      });
+    } else {
+      // 不支持流式，使用传统方式
+      let streamingContent = '';
+      const result = await agentManager.generateDiagramStream({
+        description: userMessage,
+        diagramType: diagramType || 'flowchart'
+      }, (chunk: string) => {
+        streamingContent += chunk;
+        console.log('收到流式数据块:', chunk);
+      }, model);
+      
+      // 构造响应 - 匹配客户端期望的格式
+      const responseContent = result.explanation || '图表已生成';
+      const metadata = {
+        type: 'diagram',
+        diagramCode: result.mermaidCode,
+        diagramType: result.diagramType || diagramType || 'flowchart'
+      };
+      
+      // 按照客户端期望的格式返回：内容 + 元数据标签
+      const formattedResponse = `${responseContent}\n\n[METADATA]${JSON.stringify(metadata)}[/METADATA]`;
+      
+      console.log('DiagramAgent: 流式内容长度:', streamingContent.length);
+      console.log('DiagramAgent: 最终响应长度:', formattedResponse.length);
+      
+      return new Response(
+        formattedResponse,
+        { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
+      );
+    }
   } catch (error) {
     console.error('Chat API Error:', error);
     

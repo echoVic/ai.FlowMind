@@ -2,8 +2,8 @@
  * AI Agent 管理服务
  * 统一管理不同的 AI Agent 实例，提供简单的调用接口
  */
-import { DiagramAgent, DiagramAgentFactory, DiagramGenerationRequest, DiagramGenerationResult } from '../agents/DiagramAgent';
-import type { AIModelConfig } from '../shared/types';
+import type { AIModelConfig } from '@/types/types';
+import { DiagramAgent, DiagramAgentFactory, type DiagramGenerationRequest, type DiagramGenerationResult } from '../agents/DiagramAgent';
 
 export interface AgentConfig {
   apiKey: string;
@@ -36,6 +36,22 @@ export class AgentManager {
     }
 
     return agent.generateDiagram(request);
+  }
+
+  /**
+   * 流式生成图表
+   */
+  async generateDiagramStream(
+    request: DiagramGenerationRequest, 
+    onStream?: (chunk: string) => void,
+    agentKey?: string
+  ): Promise<DiagramGenerationResult> {
+    const agent = this.getAgent(agentKey);
+    if (!agent) {
+      throw new Error(`Agent not found: ${agentKey || 'default'}`);
+    }
+
+    return agent.generateDiagram(request, onStream);
   }
 
   /**
