@@ -8,7 +8,7 @@ import { ClearOutlined, PlusOutlined, RobotOutlined, SettingOutlined, UserOutlin
 import { Bubble, Sender, ThoughtChain, useXAgent, useXChat } from '@ant-design/x';
 import { useMemoizedFn } from 'ahooks';
 import { message as antdMessage, Button, Select, Space, Tooltip, Typography } from 'antd';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 const { Text } = Typography;
 
@@ -271,7 +271,7 @@ const AntdChatInterface: React.FC = () => {
   });
   
   // 调试：监听消息变化
-  React.useEffect(() => {
+  useEffect(() => {
     console.log('消息状态更新:', messages);
   }, [messages]);
 
@@ -511,7 +511,7 @@ const AntdChatInterface: React.FC = () => {
   }, [messages, renderMessageContent]);
   
   // 调试：监听 conversationItems 变化
-  React.useEffect(() => {
+  useEffect(() => {
     console.log('=== conversationItems 更新 ===');
     console.log('conversationItems 长度:', conversationItems.length);
     console.log('conversationItems:', conversationItems);
