@@ -2,27 +2,22 @@
  * 架构图生成器主组件
  * 使用 Zustand 状态管理，整合所有功能模块
  */
-import { Bot } from 'lucide-react';
-import { motion } from 'framer-motion';
-import React, { useEffect, useState } from 'react';
-import { useIsAIAssistantOpen, useIsInputPanelOpen, useSidebarOpen, useUIActions } from '@/lib/stores/hooks';
 import { useModelManager } from '@/lib/hooks/useModelManager';
-import AIAssistant from './AIAssistant';
+import { useSidebarOpen } from '@/lib/stores/hooks';
+import { motion } from 'framer-motion';
+import { Bot } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import CodeEditor from './CodeEditor';
 import ConversationalDiagramPanel from './ConversationalDiagramPanel';
 import DiagramPreview from './DiagramPreview';
 import FloatWindow from './FloatWindow';
 import Header from './Header';
-import InputPanel from './InputPanel';
 import Sidebar from './Sidebar';
 
 const DiagramGenerator: React.FC = () => {
   const sidebarOpen = useSidebarOpen();
-  const isInputPanelOpen = useIsInputPanelOpen();
-  const isAIAssistantOpen = useIsAIAssistantOpen();
-  const { toggleInputPanel, toggleAIAssistant } = useUIActions();
   const { loadModels } = useModelManager();
-  const [activePanel, setActivePanel] = useState<'input' | 'ai' | 'conversation'>('conversation');
+  const [isConversationOpen, setIsConversationOpen] = useState(false);
   const [isFloatWindowMinimized, setIsFloatWindowMinimized] = useState(false);
 
   // 加载AI模型
@@ -33,17 +28,10 @@ const DiagramGenerator: React.FC = () => {
   // 处理快捷键
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl + Space 打开/关闭 AI 助手
+      // Ctrl + Space 打开/关闭对话面板
       if (e.ctrlKey && e.code === 'Space') {
         e.preventDefault();
-        toggleAIAssistant();
-      }
-      
-      // Ctrl + Shift + Space 打开/关闭 输入面板
-      if (e.ctrlKey && e.shiftKey && e.code === 'Space') {
-        e.preventDefault();
-        toggleInputPanel();
-        setActivePanel('input');
+        setIsConversationOpen(!isConversationOpen);
       }
     };
 
@@ -51,7 +39,7 @@ const DiagramGenerator: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [toggleAIAssistant, toggleInputPanel]);
+  }, [isConversationOpen]);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -86,42 +74,12 @@ const DiagramGenerator: React.FC = () => {
       
       {/* 悬浮窗 */}
       <FloatWindow 
-        isOpen={isInputPanelOpen || isAIAssistantOpen} 
-        onClose={() => {
-          if (activePanel === 'input') {
-            toggleInputPanel();
-          } else if (activePanel === 'ai') {
-            toggleAIAssistant();
-          } else {
-            // 对话面板关闭逻辑
-            toggleInputPanel();
-          }
-        }} 
-        activePanel={activePanel}
-        onPanelChange={(panel: 'input' | 'ai' | 'conversation') => {
-          // 如果当前面板是关闭的，需要打开它
-          if (panel === 'input' && !isInputPanelOpen) {
-            toggleInputPanel();
-          } else if (panel === 'ai' && !isAIAssistantOpen) {
-            toggleAIAssistant();
-          } else if (panel === 'conversation') {
-            // 对话面板逻辑
-            if (!isInputPanelOpen) {
-              toggleInputPanel();
-            }
-          }
-          setActivePanel(panel);
-        }}
+        isOpen={isConversationOpen} 
+        onClose={() => setIsConversationOpen(false)} 
         isMinimized={isFloatWindowMinimized}
         onMinimizeToggle={() => setIsFloatWindowMinimized(!isFloatWindowMinimized)}
       >
-        {activePanel === 'conversation' ? (
-          <ConversationalDiagramPanel />
-        ) : activePanel === 'input' ? (
-          <InputPanel />
-        ) : (
-          <AIAssistant />
-        )}
+        <ConversationalDiagramPanel />
       </FloatWindow>
       
       {/* 右下角圆形按钮 */}
@@ -135,27 +93,8 @@ const DiagramGenerator: React.FC = () => {
             return;
           }
           
-          // 默认打开对话面板
-          if (activePanel === 'conversation') {
-            if (!isInputPanelOpen && !isAIAssistantOpen) {
-              toggleInputPanel();
-              setActivePanel('conversation');
-            } else {
-              toggleInputPanel();
-            }
-          } else if (activePanel === 'input') {
-            if (!isInputPanelOpen && !isAIAssistantOpen) {
-              toggleInputPanel();
-            } else {
-              toggleInputPanel();
-            }
-          } else {
-            if (!isInputPanelOpen && !isAIAssistantOpen) {
-              toggleAIAssistant();
-            } else {
-              toggleAIAssistant();
-            }
-          }
+          // 切换对话面板
+          setIsConversationOpen(!isConversationOpen);
         }}
         className="fixed bottom-8 right-8 w-14 h-14 bg-blue-500 rounded-full shadow-lg flex items-center justify-center text-white hover:bg-blue-600 transition-colors z-30"
       >

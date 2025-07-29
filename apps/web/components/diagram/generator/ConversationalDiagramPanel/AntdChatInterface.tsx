@@ -3,11 +3,21 @@
  * 参考官方 demo 重构，简化架构和状态管理
  */
 import { useInputPanel } from '@/lib/stores/hooks';
-import { ClearOutlined, PlusOutlined, RobotOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
-import { Bubble, Prompts, Sender, ThoughtChain, useXAgent, useXChat, Welcome } from '@ant-design/x';
+import {
+  CheckCircleOutlined,
+  ClearOutlined,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined,
+  LoadingOutlined,
+  PlusOutlined,
+  RobotOutlined,
+  SettingOutlined,
+  UserOutlined
+} from '@ant-design/icons';
+import { Bubble, Prompts, Sender, ThoughtChain, ThoughtChainItem, useXAgent, useXChat, Welcome } from '@ant-design/x';
 import { useMemoizedFn } from 'ahooks';
-import { message as antdMessage, Button, Select, Space, Tooltip, Typography } from 'antd';
-import React, { useMemo, useRef, useState } from 'react';
+import { message as antdMessage, Button, Collapse, Select, Space, Tooltip, Typography } from 'antd';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 type BubbleDataType = {
   role: string;
@@ -29,10 +39,14 @@ interface ThoughtStep {
   description: string;
   status: 'pending' | 'success' | 'error';
   timestamp: string;
+  icon?: React.ReactNode;
+  content?: React.ReactNode;
 }
 
 const AntdChatInterface: React.FC = () => {
   const abortController = useRef<AbortController>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   const {
     selectedModel,
@@ -46,6 +60,8 @@ const AntdChatInterface: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [thoughtSteps, setThoughtSteps] = useState<ThoughtStep[]>([]);
   const [showThoughtChain, setShowThoughtChain] = useState(false);
+  const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
+  const [thoughtChainExpanded, setThoughtChainExpanded] = useState<string[]>([]);
 
   // 图表类型选项
   const diagramTypeOptions = [
@@ -65,15 +81,36 @@ const AntdChatInterface: React.FC = () => {
     { value: 'packet', label: '📦 数据包图' },
   ];
 
-  // 更新思考链步骤
-  const updateThoughtStep = useMemoizedFn((title: string, description: string, status: 'pending' | 'success' | 'error') => {
+  // 获取状态图标（参考官方 demo）
+  const getStatusIcon = useMemoizedFn((status: 'pending' | 'success' | 'error') => {
+    switch (status) {
+      case 'success':
+        return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+      case 'error':
+        return <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />;
+      case 'pending':
+        return <LoadingOutlined style={{ color: '#1677ff' }} />;
+      default:
+        return <ClockCircleOutlined style={{ color: '#8c8c8c' }} />;
+    }
+  });
+
+  // 更新思考链步骤（参考官方 demo 优化）
+  const updateThoughtStep = useMemoizedFn((
+    title: string, 
+    description: string, 
+    status: 'pending' | 'success' | 'error',
+    content?: React.ReactNode
+  ) => {
     setThoughtSteps(prev => {
       const existingIndex = prev.findIndex(step => step.title === title);
-      const newStep = {
+      const newStep: ThoughtStep = {
         title,
         description,
         status,
-        timestamp: new Date().toLocaleTimeString('zh-CN')
+        timestamp: new Date().toLocaleTimeString('zh-CN'),
+        icon: getStatusIcon(status),
+        content
       };
       
       if (existingIndex >= 0) {
@@ -90,13 +127,24 @@ const AntdChatInterface: React.FC = () => {
   const resetThoughtChain = useMemoizedFn(() => {
     setThoughtSteps([]);
     setShowThoughtChain(true);
+    const requestId = Date.now().toString();
+    setCurrentRequestId(requestId);
+    // 新请求开始时自动展开思维链
+    setThoughtChainExpanded([requestId]);
   });
 
   // 配置 Ant Design X Agent（修复流式响应和 loading 状态）
   const [agent] = useXAgent<BubbleDataType>({
     request: (info, callbacks) => {
       resetThoughtChain();
-      updateThoughtStep('分析需求', '正在理解用户的图表需求...', 'pending');
+      updateThoughtStep(
+        '分析需求', 
+        '正在理解用户的图表需求...', 
+        'pending',
+        <div className="text-xs text-gray-600 bg-purple-50 p-2 rounded mt-1">
+          解析用户输入，识别图表类型和关键要素...
+        </div>
+      );
       
       // 异步处理函数
       const processRequest = async () => {
@@ -168,13 +216,34 @@ const AntdChatInterface: React.FC = () => {
             const chunk = decoder.decode(value, { stream: true });
             fullContent += chunk;
             
-            // 根据内容更新思考步骤
+            // 根据内容更新思考步骤（增强版）
             if (fullContent.includes('```mermaid')) {
-              updateThoughtStep('生成图表', '正在生成Mermaid图表代码...', 'pending');
+              updateThoughtStep(
+                '生成图表', 
+                '正在生成Mermaid图表代码...', 
+                'pending',
+                <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded mt-1">
+                  检测到图表代码生成中，正在构建可视化结构...
+                </div>
+              );
             } else if (fullContent.includes('[METADATA]')) {
-              updateThoughtStep('处理结果', '正在解析图表元数据...', 'pending');
+              updateThoughtStep(
+                '处理结果', 
+                '正在解析图表元数据...', 
+                'pending',
+                <div className="text-xs text-gray-600 bg-yellow-50 p-2 rounded mt-1">
+                  解析图表类型、建议和相关信息...
+                </div>
+              );
             } else if (fullContent.length > 50 && step === 0) {
-              updateThoughtStep('构思设计', '正在构思图表结构和布局...', 'pending');
+              updateThoughtStep(
+                '构思设计', 
+                '正在构思图表结构和布局...', 
+                'pending',
+                <div className="text-xs text-gray-600 bg-green-50 p-2 rounded mt-1">
+                  分析需求并设计最适合的图表结构...
+                </div>
+              );
               step = 1;
             }
 
@@ -213,13 +282,34 @@ const AntdChatInterface: React.FC = () => {
                 });
               }
               
-              updateThoughtStep('完成生成', '图表已成功生成并准备应用', 'success');
+              updateThoughtStep(
+                '完成生成', 
+                '图表已成功生成并准备应用', 
+                'success',
+                <div className="text-xs text-gray-600 bg-green-50 p-2 rounded mt-1">
+                  ✅ 图表代码已生成，元数据已解析，可以应用到编辑器
+                </div>
+              );
             } catch (e) {
               console.warn('元数据解析失败:', e);
-              updateThoughtStep('处理结果', '图表元数据解析失败', 'error');
+              updateThoughtStep(
+                '处理结果', 
+                '图表元数据解析失败', 
+                'error',
+                <div className="text-xs text-gray-600 bg-red-50 p-2 rounded mt-1">
+                  ❌ 无法解析图表元数据，但文本内容已生成
+                </div>
+              );
             }
           } else {
-            updateThoughtStep('完成生成', '文本回复已生成', 'success');
+            updateThoughtStep(
+              '完成生成', 
+              '文本回复已生成', 
+              'success',
+              <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded mt-1">
+                ✅ AI 回复已完成，内容已准备显示
+              </div>
+            );
           }
 
           // 调用成功回调 - 这是关键！
@@ -228,7 +318,14 @@ const AntdChatInterface: React.FC = () => {
         } catch (error) {
           console.error('Agent 请求失败:', error);
           antdMessage.error(`请求失败: ${error instanceof Error ? error.message : '未知错误'}`);
-          updateThoughtStep('处理失败', '请求处理过程中出现错误', 'error');
+          updateThoughtStep(
+            '处理失败', 
+            '请求处理过程中出现错误', 
+            'error',
+            <div className="text-xs text-gray-600 bg-red-50 p-2 rounded mt-1">
+              ❌ {error instanceof Error ? error.message : '未知错误'}
+            </div>
+          );
           // 调用错误回调
           callbacks.onError(error as Error);
         }
@@ -279,28 +376,80 @@ const AntdChatInterface: React.FC = () => {
     },
   });
 
-  // 处理消息发送
-  const handleSend = useMemoizedFn((content: string) => {
-    if (!content.trim()) {
-      console.warn('消息内容为空，忽略发送');
-      return;
-    }
+  // 渲染嵌入式思维链（使用 Collapse）
+  const renderEmbeddedThoughtChain = useMemoizedFn((isActive: boolean = false, requestId: string = '') => {
+    if (thoughtSteps.length === 0) return null;
     
-    if (agent.isRequesting()) {
-      antdMessage.error('请求正在进行中，请等待请求完成');
-      return;
-    }
+    const collapseKey = requestId || currentRequestId || 'default';
     
-    try {
-      onRequest({
-        stream: true,
-        message: { role: 'user', content: content },
-      });
-    } catch (error) {
-      console.error('发送消息失败:', error);
-      antdMessage.error(`发送失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
+    const collapseItems = [
+      {
+        key: collapseKey,
+        label: (
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center space-x-2">
+              <RobotOutlined className="text-blue-500" />
+              <Text strong className="text-sm">AI 思考过程</Text>
+              <div className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">
+                {thoughtSteps.length} 步骤
+              </div>
+              {isActive && (
+                <div className="px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full animate-pulse">
+                  进行中
+                </div>
+              )}
+            </div>
+            {!isActive && (
+              <div className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded mr-4">
+                已完成
+              </div>
+            )}
+          </div>
+        ),
+        children: (
+          <div className="pt-2">
+            <ThoughtChain
+              items={thoughtSteps.map((step, index) => ({
+                key: `step-${index}`,
+                title: step.title,
+                description: step.description,
+                status: step.status,
+                icon: step.icon,
+                extra: (
+                  <div className="text-xs text-gray-400 bg-white/60 px-2 py-1 rounded">
+                    {step.timestamp}
+                  </div>
+                ),
+                content: step.content,
+              } as ThoughtChainItem))}
+              size="small"
+            />
+          </div>
+        ),
+      },
+    ];
+
+    
+    
+    return (
+      <div className="my-4 mx-8">
+        <Collapse
+          items={collapseItems}
+          activeKey={thoughtChainExpanded}
+          onChange={(keys) => setThoughtChainExpanded(Array.isArray(keys) ? keys : [keys].filter(Boolean))}
+          className={`transition-all duration-300 ${isActive ? 'shadow-lg' : 'opacity-90'}`}
+          style={{
+            background: 'linear-gradient(135deg, #f0f8ff 0%, #f5f0ff 100%)',
+            border: isActive ? '1px solid #91caff' : '1px solid #d9d9d9',
+          }}
+          expandIconPosition="end"
+          ghost={false}
+        />
+      </div>
+    );
   });
+
+
 
   // 快速操作提示词（参考官方 demo）
   const QUICK_PROMPTS = useMemo(() => [
@@ -352,6 +501,8 @@ const AntdChatInterface: React.FC = () => {
       // 清空前端消息
       setMessages([]);
       setThoughtSteps([]);
+      setCurrentRequestId(null);
+      setThoughtChainExpanded([]);
       setShowThoughtChain(false);
       
       // 通知后端清空对话历史
@@ -371,6 +522,91 @@ const AntdChatInterface: React.FC = () => {
     } catch (error) {
       console.error('清空对话失败:', error);
       antdMessage.error('清空对话失败');
+    }
+  });
+
+
+  // 检查是否接近底部
+  const isNearBottom = useMemoizedFn(() => {
+    if (!scrollContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    return scrollHeight - scrollTop - clientHeight < 100; // 距离底部100px内认为是接近底部
+  });
+
+  // 自动滚动到底部
+  const scrollToBottom = useMemoizedFn((force: boolean = false) => {
+    if (messagesEndRef.current && (force || isNearBottom())) {
+      // 使用 setTimeout 确保 DOM 更新后再滚动
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'end'
+        });
+      }, 50);
+    }
+  });
+
+  // 请求完成后自动收起思维链
+  useEffect(() => {
+    if (!agent.isRequesting() && currentRequestId && thoughtChainExpanded.includes(currentRequestId)) {
+      // 延迟收起，让用户看到完成状态
+      const timer = setTimeout(() => {
+        setThoughtChainExpanded(prev => prev.filter(key => key !== currentRequestId));
+      }, 3000); // 3秒后自动收起
+      return () => clearTimeout(timer);
+    }
+  }, [agent, currentRequestId, thoughtChainExpanded]);
+
+  // 监听消息变化，自动滚动到底部
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [messages, scrollToBottom]);
+
+  // 监听请求状态变化，在开始请求时滚动到底部
+  useEffect(() => {
+    if (agent.isRequesting()) {
+      scrollToBottom();
+    }
+  }, [agent, scrollToBottom]);
+
+  // 监听思维链步骤变化，自动滚动到底部
+  useEffect(() => {
+    if (thoughtSteps.length > 0 && agent.isRequesting()) {
+      scrollToBottom();
+    }
+  }, [thoughtSteps, agent, scrollToBottom]);
+
+  // 组件挂载时滚动到底部
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom(true);
+    }
+  }, [messages.length, scrollToBottom]); // 只在组件挂载时执行一次
+
+  // 处理消息发送（带自动滚动）
+  const handleSend = useMemoizedFn((content: string) => {
+    if (!content.trim()) {
+      console.warn('消息内容为空，忽略发送');
+      return;
+    }
+    
+    if (agent.isRequesting()) {
+      antdMessage.error('请求正在进行中，请等待请求完成');
+      return;
+    }
+    
+    try {
+      onRequest({
+        stream: true,
+        message: { role: 'user', content: content },
+      });
+      // 发送消息后强制滚动到底部
+      setTimeout(() => scrollToBottom(true), 100);
+    } catch (error) {
+      console.error('发送消息失败:', error);
+      antdMessage.error(`发送失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   });
 
@@ -430,24 +666,54 @@ const AntdChatInterface: React.FC = () => {
 
       {/* 聊天区域 */}
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 overflow-y-auto p-4">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4">
           {messages?.length ? (
-            <Bubble.List
-              items={messages?.map((i) => ({
-                ...i.message,
-                typing: i.status === 'loading' ? { step: 5, interval: 20, suffix: <>💗</> } : false,
-              }))}
-              roles={{
-                assistant: {
-                  placement: 'start',
-                  avatar: <RobotOutlined />,
-                },
-                user: { 
-                  placement: 'end',
-                  avatar: <UserOutlined />,
-                },
-              }}
-            />
+            <div className="space-y-4">
+              {messages.map((message, index) => {
+                const isUser = message.message.role === 'user';
+                const isLastUserMessage = isUser && index === messages.length - 1;
+                const nextMessage = messages[index + 1];
+                const isLastUserBeforeAssistant = isUser && nextMessage && nextMessage.message.role === 'assistant';
+                
+                // 显示思维链的条件：
+                // 1. 是用户消息
+                // 2. 是最后一条用户消息且正在请求中，或者
+                // 3. 是用户消息且下一条是助手消息（已完成的对话）
+                const showThoughtChainHere = isUser && (
+                  (isLastUserMessage && agent.isRequesting()) || 
+                  isLastUserBeforeAssistant
+                );
+                
+                return (
+                  <div key={message.id || index}>
+                    {/* 渲染消息气泡 */}
+                    <Bubble
+                      placement={isUser ? 'end' : 'start'}
+                      avatar={isUser ? <UserOutlined /> : <RobotOutlined />}
+                      content={message.message.content}
+                      typing={message.status === 'loading' ? { step: 5, interval: 20, suffix: <>💗</> } : false}
+                      styles={{
+                        content: isUser ? {
+                          background: '#1677ff',
+                          color: '#ffffff',
+                        } : {
+                          background: '#ffffff',
+                          color: '#000000',
+                        },
+                      }}
+                    />
+                    
+                    {/* 在用户消息后显示思维链 */}
+                    {showThoughtChainHere && showThoughtChain && renderEmbeddedThoughtChain(
+                      isLastUserMessage && agent.isRequesting(),
+                      isLastUserMessage ? currentRequestId || '' : `completed-${index}`
+                    )}
+                  </div>
+                );
+              })}
+              {/* 滚动标记 */}
+              <div ref={messagesEndRef} />
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
               <Welcome
@@ -467,20 +733,7 @@ const AntdChatInterface: React.FC = () => {
           )}
         </div>
 
-        {/* 思考链 */}
-        {showThoughtChain && thoughtSteps.length > 0 && (
-          <div className="p-4 border-t border-gray-100 bg-gray-50">
-            <ThoughtChain
-              items={thoughtSteps.map(step => ({
-                title: step.title,
-                description: step.description,
-                status: step.status,
-                extra: step.timestamp
-              }))}
-              collapsible
-            />
-          </div>
-        )}
+
 
         {/* 输入区域 */}
         <div className="p-4 border-t border-gray-100 bg-white">
