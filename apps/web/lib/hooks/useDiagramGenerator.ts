@@ -2,21 +2,21 @@
  * 架构图生成相关Hook
  * 使用 Zustand 状态管理，基于 LangChain Agent 的新架构
  */
+import type { AIModelConfig, DiagramData, DirectCallConfig } from '@/types/types';
 import { toast } from 'react-hot-toast';
 import type { DiagramGenerationRequest } from '../agents/DiagramAgent';
 import { agentManager } from '../services/AgentManager';
-import type { AIModelConfig, DirectCallConfig, DiagramData } from '../shared/types';
+import { useAppStore } from '../stores/appStore';
 import {
+  useAiResponse,
+  useAvailableModels,
   useCurrentDiagram,
-  useNaturalLanguageInput,
+  useDirectCallConfig,
   useIsGenerating,
   useIsOptimizing,
-  useAiResponse,
-  useSelectedModel,
-  useAvailableModels,
-  useDirectCallConfig
+  useNaturalLanguageInput,
+  useSelectedModel
 } from '../stores/hooks';
-import { useAppStore } from '../stores/appStore';
 
 /**
  * 根据模型名称推断提供商类型

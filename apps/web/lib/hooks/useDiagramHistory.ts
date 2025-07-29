@@ -2,16 +2,16 @@
  * 架构图历史记录Hook
  * 使用 Zustand 状态管理，处理保存、加载、删除历史记录（基于本地存储）
  */
+import type { DiagramData } from '@/types/types';
+import { useMount } from 'ahooks';
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { useAppStore } from '../stores/appStore';
 import {
   useCurrentDiagram,
   useDiagramHistory as useDiagramHistoryState,
   useIsSaving
 } from '../stores/hooks';
-import { useAppStore } from '../stores/appStore';
-import type { DiagramData } from '../shared/types';
-import { useMount } from 'ahooks';
 
 const STORAGE_KEY = 'diagram-history';
 
