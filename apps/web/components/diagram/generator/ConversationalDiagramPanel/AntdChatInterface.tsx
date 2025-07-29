@@ -5,7 +5,7 @@
  */
 import { useInputPanel } from '@/lib/stores/hooks';
 import { ClearOutlined, PlusOutlined, RobotOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
-import { Bubble, Conversations, Sender, ThoughtChain, useXAgent, useXChat } from '@ant-design/x';
+import { Bubble, Sender, ThoughtChain, useXAgent, useXChat } from '@ant-design/x';
 import { useMemoizedFn } from 'ahooks';
 import { message as antdMessage, Button, Select, Space, Tooltip, Typography } from 'antd';
 import React, { useMemo, useState } from 'react';
@@ -72,7 +72,7 @@ const AntdChatInterface: React.FC = () => {
   ];
 
   // 配置 Ant Design X Agent - 对接后端 LangChain
-  const [agent] = useXAgent<string, { messages: any[] }, { content: string; metadata?: DiagramMetadata }>({
+  const [agent] = useXAgent({
     request: async (info, callbacks) => {
       setIsGenerating(true);
       setStreamingContent('');
@@ -83,40 +83,76 @@ const AntdChatInterface: React.FC = () => {
       setStreamingMessageId(tempMessageId);
       
       try {
-            updateThoughtStep('分析需求', '正在理解用户的图表需求...', 'pending');
-            
-            // 确保消息数组包含当前要发送的消息
-      console.log('原始消息数组:', info.messages);
-      
-      // 获取有效的消息
-      const messagesToSend = [
-        ...info.messages.filter(msg => msg && (msg.content || msg.content === '')).map(msg => ({
-          role: msg.role || 'user',
-          content: typeof msg.content === 'string' ? msg.content : String(msg.content || '')
-        }))
-      ];
-      
-      // 确保至少有一条消息
-      if (messagesToSend.length === 0) {
-        console.error('没有有效的消息可以发送，info.messages:', info.messages);
+        updateThoughtStep('分析需求', '正在理解用户的图表需求...', 'pending');
         
-        // 尝试从上下文中恢复最后一条消息
-        if (info.messages && info.messages.length > 0) {
-          const lastMessage = info.messages[info.messages.length - 1];
-          if (lastMessage) {
-            messagesToSend.push({
-              role: lastMessage.role || 'user',
-              content: String(lastMessage.content || '继续对话')
-            });
-          } else {
-            throw new Error('无法获取有效的用户消息');
+        console.log('=== useXAgent 请求调试 ===');
+        console.log('info:', info);
+        console.log('info 类型:', typeof info);
+        console.log('========================');
+        
+        // 简化消息处理 - 基于 Ant Design X 的实际行为
+        let userMessage = '';
+        let conversationHistory = [];
+        
+        // 处理不同的输入格式
+        if (typeof info === 'string') {
+          // 直接是用户输入的字符串
+          userMessage = info;
+        } else if (info && typeof info === 'object') {
+          // 检查是否有 messages 数组（多轮对话）
+          if ((info as any).messages && Array.isArray((info as any).messages)) {
+            const validMessages = (info as any).messages.filter((msg: any) => msg && msg.content);
+            if (validMessages.length > 0) {
+              // 最后一条是当前消息，前面的是历史
+              userMessage = validMessages[validMessages.length - 1].content;
+              conversationHistory = validMessages.slice(0, -1).map((msg: any) => ({
+                role: msg.role || 'user',
+                content: msg.content
+              }));
+            }
+          } else if ((info as any).content) {
+            // 单个消息对象
+            userMessage = (info as any).content;
           }
-        } else {
-          throw new Error('对话消息为空');
         }
-      }
-      
-      console.log('准备发送的消息:', messagesToSend);
+        
+        // 如果还是没有消息，尝试其他属性
+        if (!userMessage && info && typeof info === 'object') {
+          const possibleKeys = ['message', 'text', 'input', 'prompt', 'query'];
+          for (const key of possibleKeys) {
+            if ((info as any)[key] && typeof (info as any)[key] === 'string') {
+              userMessage = (info as any)[key];
+              break;
+            }
+          }
+        }
+        
+        console.log('提取的用户消息:', userMessage);
+        console.log('对话历史:', conversationHistory);
+        
+        if (!userMessage || !userMessage.trim()) {
+          console.error('无法提取用户消息，原始 info:', info);
+          // 提供一个默认消息作为最后的回退
+          if (info) {
+            const fallbackMessage = String(info).trim();
+            if (fallbackMessage && fallbackMessage !== '[object Object]') {
+              userMessage = fallbackMessage;
+              console.log('使用回退消息:', userMessage);
+            } else {
+              throw new Error('无法获取有效的用户消息，请重新输入');
+            }
+          } else {
+            throw new Error('消息内容为空，请输入您的需求');
+          }
+        }
+        
+        // 构建发送给后端的消息数组
+        const messagesToSend = [
+          ...conversationHistory,
+          { role: 'user', content: userMessage.trim() }
+        ];
+        
+        console.log('最终发送的消息数组:', messagesToSend);
       
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -233,16 +269,27 @@ const AntdChatInterface: React.FC = () => {
   const { onRequest, messages, setMessages } = useXChat({
     agent,
   });
+  
+  // 调试：监听消息变化
+  React.useEffect(() => {
+    console.log('消息状态更新:', messages);
+  }, [messages]);
 
   // 处理消息发送
   const handleSend = useMemoizedFn(async (content: string) => {
-    if (!content.trim()) return;
+    if (!content.trim()) {
+      console.warn('消息内容为空，忽略发送');
+      return;
+    }
+    
+    console.log('准备发送消息:', content);
     
     try {
       await onRequest(content);
+      console.log('消息发送成功');
     } catch (error) {
       console.error('发送消息失败:', error);
-      antdMessage.error('发送失败，请重试');
+      antdMessage.error(`发送失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   });
 
@@ -341,11 +388,31 @@ const AntdChatInterface: React.FC = () => {
   };
 
   // 清空对话
-  const handleClearChat = useMemoizedFn(() => {
-    setMessages([]);
-    setThoughtSteps([]);
-    setShowThoughtChain(false);
-    antdMessage.success('对话已清空');
+  const handleClearChat = useMemoizedFn(async () => {
+    try {
+      // 清空前端消息
+      setMessages([]);
+      setThoughtSteps([]);
+      setShowThoughtChain(false);
+      
+      // 通知后端清空对话历史
+      await fetch('/api/chat/clear', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: selectedModel
+        }),
+      }).catch(err => {
+        console.warn('清空后端对话历史失败:', err);
+      });
+      
+      antdMessage.success('对话已清空');
+    } catch (error) {
+      console.error('清空对话失败:', error);
+      antdMessage.error('清空对话失败');
+    }
   });
 
   // 更新思考链步骤
@@ -375,60 +442,87 @@ const AntdChatInterface: React.FC = () => {
     setShowThoughtChain(true);
   });
 
-  // 转换消息格式为 Ant Design X 格式
+  // 转换消息格式为 Ant Design X Conversations 组件格式
   const conversationItems = useMemo(() => {
-    return messages.filter(msg => msg && (msg as any).content).map((msg, index) => {
-      const xchatMessage = msg as any;
-
-      let extendedMessage: ExtendedMessage;
-
-      if (xchatMessage.role === 'user') {
-        extendedMessage = {
-          id: xchatMessage.id,
-          role: 'user',
-          content: xchatMessage.content,
-          createAt: xchatMessage.createAt || Date.now(),
-        };
-      } else {
-        // Assistant message from useXAgent can have content as object
-        let assistantContentValue: string;
-        let assistantMetadata: DiagramMetadata | undefined;
-
-        if (typeof xchatMessage.content === 'string') {
-          assistantContentValue = xchatMessage.content;
-          assistantMetadata = undefined;
-        } else {
-          const contentObj = xchatMessage.content as { content: string; metadata?: DiagramMetadata };
-          assistantContentValue = contentObj.content;
-          assistantMetadata = contentObj.metadata;
-        }
-
-        extendedMessage = {
-          id: xchatMessage.id,
-          role: 'assistant',
-          content: assistantContentValue,
-          metadata: assistantMetadata,
-          createAt: xchatMessage.createAt || Date.now(),
-        };
-      }
-
-      return (
-        <Bubble
-          key={extendedMessage.id || `msg-${index}-${Date.now()}`}
-          placement={extendedMessage.role === 'user' ? 'end' : 'start'}
-          content={renderMessageContent(extendedMessage)}
-          avatar={extendedMessage.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
-          styles={{
-            content: {
-              background: extendedMessage.role === 'user' ? '#1677ff' : '#ffffff',
-              color: extendedMessage.role === 'user' ? '#ffffff' : '#000000',
-              maxWidth: '80%',
-            },
-          }}
-        />
-      );
+    console.log('=== 转换消息格式调试 ===');
+    console.log('原始 messages:', messages);
+    console.log('messages 长度:', messages.length);
+    
+    const filteredMessages = messages.filter(msg => {
+      if (!msg) return false;
+      
+      // 检查多种可能的内容属性
+      const content = (msg as any).content || (msg as any).message;
+      const hasContent = content !== undefined && content !== null && content !== '';
+      
+      console.log('🔍 消息过滤:', msg, '有内容:', hasContent);
+      return hasContent;
     });
+    
+    console.log('过滤后的消息:', filteredMessages);
+    
+    // 转换为 Bubble.List 组件期望的格式
+    const conversationData = filteredMessages.map((msg, index) => {
+      const xchatMessage = msg as any;
+      const messageContent = xchatMessage.content || xchatMessage.message;
+      
+      let role = 'user';
+      let content = '';
+      let metadata: DiagramMetadata | undefined;
+      
+      if (xchatMessage.role === 'user' || xchatMessage.status === 'local') {
+        role = 'user';
+        content = typeof messageContent === 'string' ? messageContent : String(messageContent || '');
+      } else {
+        role = 'assistant';
+        if (typeof messageContent === 'string') {
+          content = messageContent;
+        } else if (typeof messageContent === 'object' && messageContent) {
+          const contentObj = messageContent as { content: string; metadata?: DiagramMetadata };
+          content = contentObj.content || String(messageContent);
+          metadata = contentObj.metadata;
+        } else {
+          content = String(messageContent || '');
+        }
+      }
+      
+      // 为图表消息渲染特殊内容
+      let displayContent: React.ReactNode = content;
+      if (metadata?.type === 'diagram') {
+        displayContent = renderMessageContent({
+          id: xchatMessage.id || `msg-${index}`,
+          role: role as 'user' | 'assistant',
+          content,
+          metadata,
+          createAt: Date.now()
+        });
+      }
+      
+      return {
+        key: xchatMessage.id || `msg-${index}`,
+        role,
+        content: displayContent,
+        metadata,
+      };
+    });
+    
+    console.log('🎯 转换后的对话数据:', conversationData);
+    return conversationData;
   }, [messages, renderMessageContent]);
+  
+  // 调试：监听 conversationItems 变化
+  React.useEffect(() => {
+    console.log('=== conversationItems 更新 ===');
+    console.log('conversationItems 长度:', conversationItems.length);
+    console.log('conversationItems:', conversationItems);
+    console.log('conversationItems 类型:', typeof conversationItems);
+    console.log('conversationItems 是数组:', Array.isArray(conversationItems));
+    if (conversationItems.length > 0) {
+      console.log('第一个 conversationItem:', conversationItems[0]);
+      console.log('第一个 conversationItem 类型:', typeof conversationItems[0]);
+    }
+    console.log('==========================');
+  }, [conversationItems]);
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -493,11 +587,22 @@ const AntdChatInterface: React.FC = () => {
               onClick={handleClearChat}
             />
           </Tooltip>
-          <Tooltip title="设置">
+          <Tooltip title="查看对话历史">
             <Button 
               type="text" 
               icon={<SettingOutlined />} 
               size="small"
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/chat/history?model=${selectedModel}`);
+                  const data = await response.json();
+                  console.log('对话历史:', data);
+                  antdMessage.info(`当前对话历史: ${data.historyLength} 条消息`);
+                } catch (error) {
+                  console.error('获取对话历史失败:', error);
+                  antdMessage.error('获取对话历史失败');
+                }
+              }}
             />
           </Tooltip>
         </Space>
@@ -507,6 +612,14 @@ const AntdChatInterface: React.FC = () => {
       <div className="flex-1 flex flex-col min-h-0">
         {/* 消息列表 */}
         <div className="flex-1 overflow-y-auto">
+          {(() => {
+            console.log('🎨 渲染条件检查:');
+            console.log('- conversationItems.length:', conversationItems.length);
+            console.log('- isGenerating:', isGenerating);
+            console.log('- 显示欢迎界面条件:', conversationItems.length === 0 && !isGenerating);
+            console.log('- 应该显示对话:', !(conversationItems.length === 0 && !isGenerating));
+            return null;
+          })()}
           {conversationItems.length === 0 && !isGenerating ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
               <RobotOutlined className="text-6xl text-gray-300 mb-4" />
@@ -530,7 +643,32 @@ const AntdChatInterface: React.FC = () => {
             </div>
           ) : (
             <div className="p-4">
-              <Conversations items={conversationItems} />
+              <Bubble.List
+                autoScroll
+                items={conversationItems}
+                roles={{
+                  user: {
+                    placement: 'end',
+                    avatar: <UserOutlined />,
+                    styles: {
+                      content: {
+                        background: '#1677ff',
+                        color: '#ffffff',
+                      },
+                    },
+                  },
+                  assistant: {
+                    placement: 'start',
+                    avatar: <RobotOutlined />,
+                    styles: {
+                      content: {
+                        background: '#ffffff',
+                        color: '#000000',
+                      },
+                    },
+                  },
+                }}
+              />
               
               {/* 流式内容显示 */}
               {isGenerating && streamingContent && (

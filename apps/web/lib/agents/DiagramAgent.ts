@@ -446,7 +446,9 @@ export class DiagramAgent {
       
       // 更新对话历史
       if (this.config.enableMemory) {
+        console.log('DiagramAgent: 更新对话历史');
         this.updateConversationHistory(userPrompt, response);
+        console.log('DiagramAgent: 当前对话历史长度:', this.conversationHistory.length);
       }
 
       console.log('DiagramAgent: 图表生成完成');
@@ -502,6 +504,20 @@ export class DiagramAgent {
         this.conversationHistory.push(new AIMessage(msg.content));
       }
     }
+    
+    console.log('DiagramAgent: 设置对话历史完成，共', this.conversationHistory.length - 1, '条消息');
+  }
+
+  /**
+   * 获取对话历史
+   */
+  getConversationHistory(): Array<{role: string, content: string}> {
+    return this.conversationHistory
+      .filter(msg => msg._getType() !== 'system') // 排除系统消息
+      .map(msg => ({
+        role: msg._getType() === 'human' ? 'user' : 'assistant',
+        content: msg.content as string
+      }));
   }
 
   /**
@@ -906,15 +922,19 @@ ${request.existingCode}
       new AIMessage(response)
     );
 
-    // 限制历史长度
-    const maxHistoryLength = 10;
-    if (this.conversationHistory.length > maxHistoryLength) {
+    console.log('DiagramAgent: 添加对话记录 - 用户:', userPrompt.substring(0, 50) + '...');
+    console.log('DiagramAgent: 添加对话记录 - 助手:', response.substring(0, 50) + '...');
+
+    // 限制历史长度，保持最近的对话
+    const maxHistoryLength = 20; // 增加历史长度以支持更长的对话
+    if (this.conversationHistory.length > maxHistoryLength + 1) { // +1 for system message
       const systemMessages = this.conversationHistory.filter(msg => msg._getType() === 'system');
       const recentMessages = this.conversationHistory
         .filter(msg => msg._getType() !== 'system')
         .slice(-maxHistoryLength);
       
       this.conversationHistory = [...systemMessages, ...recentMessages];
+      console.log('DiagramAgent: 对话历史已截断，保留最近', maxHistoryLength, '条消息');
     }
   }
 

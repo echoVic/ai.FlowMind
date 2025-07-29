@@ -16,34 +16,31 @@ export async function POST(req: NextRequest) {
     }
     
     // 获取用户最新消息和对话历史
-    // 处理两种格式：直接字符串数组或包含role/content的对象数组
     let userMessage = '';
     const conversationHistory = [];
     
     if (messages.length > 0) {
-      // 转换消息格式为统一的对话历史
-      for (const msg of messages) {
+      // 处理消息数组，最后一条是当前用户消息，前面的是历史对话
+      for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i];
+        const isLastMessage = i === messages.length - 1;
+        
         if (typeof msg === 'string') {
-          // 如果是字符串格式，假设为用户消息
-          if (msg === messages[messages.length - 1]) {
+          if (isLastMessage) {
             userMessage = msg;
           } else {
+            // 历史消息默认为用户消息
             conversationHistory.push({ role: 'user', content: msg });
           }
-        } else if (msg && typeof msg === 'object') {
-          // 如果是对象格式，包含 role 和 content
-          if (msg.role && msg.content) {
-            conversationHistory.push({ role: msg.role, content: msg.content });
-            if (msg === messages[messages.length - 1]) {
-              userMessage = msg.content;
-            }
-          } else if (msg.content) {
-            // 如果没有 role，根据位置推断
-            if (msg === messages[messages.length - 1]) {
-              userMessage = msg.content;
-            } else {
-              conversationHistory.push({ role: 'user', content: msg.content });
-            }
+        } else if (msg && typeof msg === 'object' && msg.content) {
+          if (isLastMessage) {
+            userMessage = msg.content;
+          } else {
+            // 保持原有的 role，如果没有则默认为 user
+            conversationHistory.push({ 
+              role: msg.role || 'user', 
+              content: msg.content 
+            });
           }
         }
       }
@@ -96,9 +93,13 @@ export async function POST(req: NextRequest) {
     
     // 注入对话历史到 Agent
     if (conversationHistory.length > 0 && agent) {
-      // 清空现有历史并注入新的对话历史
-      agent.clearHistory();
+      console.log('注入对话历史:', conversationHistory.length, '条消息');
+      console.log('历史消息预览:', conversationHistory.slice(-2)); // 显示最后2条历史消息
+      
+      // 设置对话历史（不清空，因为 setConversationHistory 会重新初始化）
       agent.setConversationHistory(conversationHistory);
+    } else {
+      console.log('无对话历史需要注入');
     }
     
     // 检查是否支持流式输出

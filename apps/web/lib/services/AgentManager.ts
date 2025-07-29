@@ -155,6 +155,28 @@ export class AgentManager {
   }
 
   /**
+   * 清空指定 Agent 的对话历史
+   */
+  clearAgentHistory(agentKey?: string): void {
+    const agent = this.getAgent(agentKey);
+    if (agent) {
+      agent.clearHistory();
+      console.log(`Agent history cleared: ${agentKey || 'default'}`);
+    }
+  }
+
+  /**
+   * 获取指定 Agent 的对话历史
+   */
+  getAgentHistory(agentKey?: string): Array<{role: string, content: string}> {
+    const agent = this.getAgent(agentKey);
+    if (agent && typeof agent.getConversationHistory === 'function') {
+      return agent.getConversationHistory();
+    }
+    return [];
+  }
+
+  /**
    * 设置默认 Agent
    */
   setDefaultAgent(key: string): void {
@@ -201,7 +223,7 @@ export class AgentManager {
         modelName: arkModelName,
         temperature: defaultTemperature,
         maxTokens: defaultMaxTokens,
-        enableMemory: false
+        enableMemory: true
       });
       this.setDefaultAgent('volcengine-default');
     } else if (qwenApiKey) {
@@ -213,7 +235,7 @@ export class AgentManager {
         endpoint: qwenEndpoint,
         temperature: defaultTemperature,
         maxTokens: defaultMaxTokens,
-        enableMemory: false
+        enableMemory: true
       });
       this.setDefaultAgent('qwen-default');
     } else if (openaiApiKey) {
@@ -224,7 +246,7 @@ export class AgentManager {
         modelName: openaiModelName,
         temperature: defaultTemperature,
         maxTokens: defaultMaxTokens,
-        enableMemory: false
+        enableMemory: true
       });
       this.setDefaultAgent('openai-default');
     } else if (anthropicApiKey) {
@@ -235,7 +257,7 @@ export class AgentManager {
         modelName: anthropicModelName,
         temperature: defaultTemperature,
         maxTokens: defaultMaxTokens,
-        enableMemory: false
+        enableMemory: true
       });
       this.setDefaultAgent('anthropic-default');
     } else {
@@ -254,7 +276,7 @@ export class AgentManager {
       modelName: config.model,
       temperature: config.temperature,
       maxTokens: config.maxTokens,
-      enableMemory: false,
+      enableMemory: true,
       endpoint: config.endpoint
     };
 
