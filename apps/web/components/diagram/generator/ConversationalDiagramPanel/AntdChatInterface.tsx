@@ -175,6 +175,7 @@ const AntdChatInterface: React.FC = () => {
             throw new Error('消息内容为空，请输入您的需求');
           }
 
+          // 只发送当前用户消息，依赖Agent内部历史管理
           const messagesToSend = [
             { role: 'user', content: userMessage.trim() }
           ];

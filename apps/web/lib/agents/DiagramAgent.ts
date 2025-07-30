@@ -608,6 +608,7 @@ ${request.existingCode}
    * 构建消息列表
    */
   private buildMessages(userPrompt: string): BaseMessage[] {
+    // 创建临时消息数组，不修改conversationHistory
     const messages = [...this.conversationHistory];
     messages.push(new HumanMessage(userPrompt));
     return messages;
@@ -917,6 +918,7 @@ ${request.existingCode}
    * 更新对话历史
    */
   private updateConversationHistory(userPrompt: string, response: string): void {
+    // 直接添加用户消息和AI回复
     this.conversationHistory.push(
       new HumanMessage(userPrompt),
       new AIMessage(response)

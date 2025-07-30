@@ -15,34 +15,16 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // 获取用户最新消息和对话历史
+    // 获取用户消息（简化架构：只处理当前消息）
     let userMessage = '';
-    const conversationHistory = [];
     
     if (messages.length > 0) {
-      // 处理消息数组，最后一条是当前用户消息，前面的是历史对话
-      for (let i = 0; i < messages.length; i++) {
-        const msg = messages[i];
-        const isLastMessage = i === messages.length - 1;
-        
-        if (typeof msg === 'string') {
-          if (isLastMessage) {
-            userMessage = msg;
-          } else {
-            // 历史消息默认为用户消息
-            conversationHistory.push({ role: 'user', content: msg });
-          }
-        } else if (msg && typeof msg === 'object' && msg.content) {
-          if (isLastMessage) {
-            userMessage = msg.content;
-          } else {
-            // 保持原有的 role，如果没有则默认为 user
-            conversationHistory.push({ 
-              role: msg.role || 'user', 
-              content: msg.content 
-            });
-          }
-        }
+      const msg = messages[0]; // 只取第一条消息（当前用户消息）
+      
+      if (typeof msg === 'string') {
+        userMessage = msg;
+      } else if (msg && typeof msg === 'object' && msg.content) {
+        userMessage = msg.content;
       }
     }
     
@@ -91,16 +73,8 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    // 注入对话历史到 Agent
-    if (conversationHistory.length > 0 && agent) {
-      console.log('注入对话历史:', conversationHistory.length, '条消息');
-      console.log('历史消息预览:', conversationHistory.slice(-2)); // 显示最后2条历史消息
-      
-      // 设置对话历史（不清空，因为 setConversationHistory 会重新初始化）
-      agent.setConversationHistory(conversationHistory);
-    } else {
-      console.log('无对话历史需要注入');
-    }
+    // 简化架构：完全依赖Agent内部历史管理，不需要外部注入
+    console.log('使用Agent内部历史管理，当前对话历史长度:', agent.getConversationHistory().length);
     
     // 检查是否支持流式输出
     const supportsStreaming = agent.supportsStreaming?.() || false;
