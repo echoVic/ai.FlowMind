@@ -33,11 +33,13 @@
 ### 1. 聊天界面升级
 
 **之前**：
+
 - 自定义的聊天气泡和消息渲染
 - 手动处理消息状态和布局
 - 基础的 Markdown 渲染
 
 **现在**：
+
 - 使用 Ant Design X 的 `Conversations`、`Sender`、`Bubble` 组件
 - 专业的聊天界面设计
 - 更好的消息展示和交互体验
@@ -45,6 +47,7 @@
 ### 2. 组件架构简化
 
 **之前**：
+
 ```
 ConversationalDiagramPanel/
 ├── index.tsx
@@ -57,6 +60,7 @@ ConversationalDiagramPanel/
 ```
 
 **现在**：
+
 ```
 ConversationalDiagramPanel/
 ├── index.tsx
@@ -67,6 +71,7 @@ ConversationalDiagramPanel/
 ### 3. 功能保持
 
 ✅ **保留的功能**：
+
 - AI 对话功能（基于 AI SDK）
 - 图表生成和元数据处理
 - 多种图表类型支持
@@ -74,6 +79,7 @@ ConversationalDiagramPanel/
 - 加载状态显示
 
 ✅ **改进的功能**：
+
 - 更好的消息展示效果
 - 专业的聊天界面设计
 - 更流畅的用户交互

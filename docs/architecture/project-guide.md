@@ -93,6 +93,11 @@ flow-ai/
 │       ├── types/           # TypeScript 类型定义
 │       ├── next.config.js   # Next.js 配置
 │       └── package.json     # 前端依赖
+├── docs/                    # 文档中心
+│   ├── architecture/        # 架构文档
+│   ├── deployment/          # 部署指南
+│   ├── development/         # 开发记录
+│   └── guides/              # 使用指南
 ├── package.json             # 根依赖
 └── turbo.json              # Turbo 配置
 ```

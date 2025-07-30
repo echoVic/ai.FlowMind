@@ -15,6 +15,7 @@ Vercel 是 Next.js 的官方部署平台，提供最佳的部署体验。
 #### 手动部署
 
 1. **Fork 项目**
+
    ```bash
    # 在 GitHub 上 Fork 本仓库
    # 或者克隆到本地
@@ -30,6 +31,7 @@ Vercel 是 Next.js 的官方部署平台，提供最佳的部署体验。
 
 3. **配置环境变量**
    在 Vercel 项目设置中添加以下环境变量：
+
    ```bash
    # 豆包 (火山引擎) 配置
    NEXT_PUBLIC_ARK_API_KEY=your-volcengine-api-key
@@ -58,6 +60,7 @@ Vercel 是 Next.js 的官方部署平台，提供最佳的部署体验。
    - 连接你的 GitHub 仓库
 
 2. **构建设置**
+
    ```bash
    # Build command
    cd apps/web && npm run build
@@ -78,6 +81,7 @@ GitHub Pages 需要静态导出，适合完全静态的部署。
 
 1. **修改配置**
    在 `apps/web/next.config.js` 中添加：
+
    ```javascript
    /** @type {import('next').NextConfig} */
    const nextConfig = {
@@ -95,6 +99,7 @@ GitHub Pages 需要静态导出，适合完全静态的部署。
 
 2. **GitHub Actions 配置**
    创建 `.github/workflows/deploy.yml`：
+
    ```yaml
    name: Deploy to GitHub Pages
    
@@ -141,6 +146,7 @@ GitHub Pages 需要静态导出，适合完全静态的部署。
 ### 使用 Docker Compose
 
 1. **创建 docker-compose.yml**
+
    ```yaml
    version: '3.8'
    services:
@@ -159,6 +165,7 @@ GitHub Pages 需要静态导出，适合完全静态的部署。
 
 2. **创建 Dockerfile**
    在 `apps/web/Dockerfile`：
+
    ```dockerfile
    FROM node:18-alpine AS base
    
@@ -201,6 +208,7 @@ GitHub Pages 需要静态导出，适合完全静态的部署。
    ```
 
 3. **部署**
+
    ```bash
    # 创建环境变量文件
    echo "ARK_API_KEY=your-api-key" > .env
@@ -216,6 +224,7 @@ GitHub Pages 需要静态导出，适合完全静态的部署。
 ### 阿里云 OSS + CDN
 
 1. **构建静态文件**
+
    ```bash
    cd apps/web
    npm run build
@@ -223,6 +232,7 @@ GitHub Pages 需要静态导出，适合完全静态的部署。
    ```
 
 2. **上传到 OSS**
+
    ```bash
    # 使用阿里云 CLI 工具
    ossutil cp -r out/ oss://your-bucket-name/ --update
@@ -289,6 +299,7 @@ ANALYZE=true pnpm build
 ### 性能优化
 
 1. **启用压缩**
+
    ```javascript
    // next.config.js
    const nextConfig = {
@@ -298,6 +309,7 @@ ANALYZE=true pnpm build
    ```
 
 2. **图片优化**
+
    ```javascript
    // next.config.js
    const nextConfig = {
@@ -313,6 +325,7 @@ ANALYZE=true pnpm build
 ### 常见问题
 
 1. **构建失败**
+
    ```bash
    # 清理缓存
    rm -rf .next node_modules

@@ -5,136 +5,17 @@ FlowMind 项目支持 AI 模型的流式输出功能，提供更好的用户体�
 ## 🚀 流式输出支持状态
 
 ### ✅ 完全支持流式输出
-- **OpenAI GPT 系列**: 通过 `@langchain/openai` 原生支持
-- **Anthropic Claude 系列**: 通过 `@langchain/anthropic` 原生支持
-- **火山引擎豆包**: API 原生支持 `stream: true` 参数
-- **Qwen 通义千问**: API 原生支持 `stream: true` 参数（兼容 OpenAI 格式）
 
-### 🔄 需要适配器实现流式支持
-- 所有主流 AI 提供商都已支持流式输出，只需在 LangChain 适配器中实现即可
-# 流式输出功能说明
-
-FlowMind 项目支持 AI 模型的流式输出功能，提供更好的用户体验。
-
-## 🚀 流式输出支持状态
-
-# 流式输出功能说明
-
-FlowMind 项目支持 AI 模型的流式输出功能，提供更好的用户体验。
-
-## 🚀 流式输出支持状态
-
-### ✅ 完全支持流式输出
 - **OpenAI GPT 系列**: 通过 `@langchain/openai` 原生支持
 - **Anthropic Claude 系列**: 通过 `@langchain/anthropic` 原生支持
 
 ### ❌ 暂不支持流式输出
+
 - **火山引擎豆包**: 自定义适配器，暂未实现流式支持
 - **Qwen 通义千问**: 自定义适配器，暂未实现流式支持
 
 ### 🔄 自动降级机制
-当检测到模型不支持流式输出时，系统会自动降级到普通调用模式，确保功能正常运行。
 
-## 🛠️ 技术实现
-
-### DiagramAgent 流式支持
-
-```typescript
-// 支持流式输出的生成方法
-async generateDiagram(
-  request: DiagramGenerationRequest, 
-  onStream?: (chunk: string) => void  // 流式回调函数
-): Promise<DiagramGenerationResult>
-
-// 检测模型是否支持流式
-private supportsStreaming(): boolean {
-  const modelType = this.model._llmType();
-  return modelType === 'openai' || 
-         modelType === 'anthropic' || 
-         modelType === 'volcengine' ||  // 火山引擎支持流式
-         modelType === 'qwen';          // Qwen 支持流式
-}
-# 流式输出功能说明
-
-FlowMind 项目支持 AI 模型的流式输出功能，提供更好的用户体验。
-
-## 🚀 流式输出支持状态
-
-### ✅ 完全支持流式输出
-- **OpenAI GPT 系列**: 通过 `@langchain/openai` 原生支持
-- **Anthropic Claude 系列**: 通过 `@langchain/anthropic` 原生支持
-- **火山引擎豆包**: API 原生支持 `stream: true` 参数
-
-### 🔄 需要适配器实现流式支持
-- **Qwen 通义千问**: API 支持流式，需要在 LangChain 适配器中实现
-# 流式输出功能说明
-
-FlowMind 项目支持 AI 模型的流式输出功能，提供更好的用户体验。
-
-## 🚀 流式输出支持状态
-
-# 流式输出功能说明
-
-FlowMind 项目支持 AI 模型的流式输出功能，提供更好的用户体验。
-
-## 🚀 流式输出支持状态
-
-### ✅ 完全支持流式输出
-- **OpenAI GPT 系列**: 通过 `@langchain/openai` 原生支持
-- **Anthropic Claude 系列**: 通过 `@langchain/anthropic` 原生支持
-
-### ❌ 暂不支持流式输出
-- **火山引擎豆包**: 自定义适配器，暂未实现流式支持
-- **Qwen 通义千问**: 自定义适配器，暂未实现流式支持
-
-### 🔄 自动降级机制
-当检测到模型不支持流式输出时，系统会自动降级到普通调用模式，确保功能正常运行。
-
-## 🛠️ 技术实现
-
-### DiagramAgent 流式支持
-
-```typescript
-// 支持流式输出的生成方法
-async generateDiagram(
-  request: DiagramGenerationRequest, 
-  onStream?: (chunk: string) => void  // 流式回调函数
-): Promise<DiagramGenerationResult>
-
-# 流式输出功能说明
-
-FlowMind 项目支持 AI 模型的流式输出功能，提供更好的用户体验。
-
-## 🚀 流式输出支持状态
-
-### ✅ 完全支持流式输出
-- **OpenAI GPT 系列**: 通过 `@langchain/openai` 原生支持
-- **Anthropic Claude 系列**: 通过 `@langchain/anthropic` 原生支持
-- **火山引擎豆包**: API 原生支持 `stream: true` 参数
-
-### 🔄 需要适配器实现流式支持
-- **Qwen 通义千问**: API 支持流式，需要在 LangChain 适配器中实现
-# 流式输出功能说明
-
-FlowMind 项目支持 AI 模型的流式输出功能，提供更好的用户体验。
-
-## 🚀 流式输出支持状态
-
-# 流式输出功能说明
-
-FlowMind 项目支持 AI 模型的流式输出功能，提供更好的用户体验。
-
-## 🚀 流式输出支持状态
-
-### ✅ 完全支持流式输出
-- **OpenAI GPT 系列**: 通过 `@langchain/openai` 原生支持
-- **Anthropic Claude 系列**: 通过 `@langchain/anthropic` 原生支持
-
-### ❌ 暂不支持流式输出
-- **火山引擎豆包**: 自定义适配器，暂未实现流式支持
-- **Qwen 通义千问**: 自定义适配器，暂未实现流式支持
-
-### 🔄 自动降级机制
 当检测到模型不支持流式输出时，系统会自动降级到普通调用模式，确保功能正常运行。
 
 ## 🛠️ 技术实现
@@ -194,11 +75,13 @@ const handleGenerateDiagram = async (description: string) => {
 ## 📱 用户体验
 
 ### 支持流式的模型
+
 - ⚡ **实时响应**: 用户可以看到AI逐字生成内容
 - 🎯 **即时反馈**: 更快的感知响应速度
 - 🔄 **流畅体验**: 减少等待时间的焦虑感
 
 ### 不支持流式的模型
+
 - ⏳ **等待模式**: 显示加载状态直到完整响应
 - 🔄 **自动降级**: 无需用户干预，自动切换到普通模式
 - ✅ **功能完整**: 所有功能正常工作，只是响应方式不同
@@ -277,6 +160,7 @@ async function streamQwen() {
 如果要为自定义提供商添加流式支持，需要：
 
 1. **实现流式方法**:
+
 ```typescript
 export class VolcengineLangChainProvider extends BaseChatModel {
   async *_streamResponseChunks(
@@ -336,6 +220,7 @@ export class VolcengineLangChainProvider extends BaseChatModel {
 ```
 
 2. **更新支持检测**:
+
 ```typescript
 private supportsStreaming(): boolean {
   const modelType = this.model._llmType();
@@ -397,12 +282,14 @@ console.log('DiagramAgent: 支持流式:', this.supportsStreaming());
 ## 🔮 未来计划
 
 ### 短期目标
-- [x] 火山引擎豆包已支持流式输出（API 原生支持 `stream: true`）
+
+- [ ] 为火山引擎豆包添加流式支持
 - [ ] 为 Qwen 通义千问添加流式支持
 - [ ] 优化流式数据的解析和显示
-- [ ] 在 LangChain 适配器中实现火山引擎的流式支持
+- [ ] 在 LangChain 适配器中实现流式支持
 
 ### 长期目标
+
 - [ ] 支持更多AI提供商的流式输出
 - [ ] 实现流式输出的暂停/恢复功能
 - [ ] 添加流式输出的性能监控
@@ -412,7 +299,7 @@ console.log('DiagramAgent: 支持流式:', this.supportsStreaming());
 如果在使用流式输出功能时遇到问题：
 
 1. 查看浏览器控制台的错误信息
-2. 确认使用的是支持流式的模型（OpenAI/Claude/火山引擎）
+2. 确认使用的是支持流式的模型（OpenAI/Claude）
 3. 检查网络连接和API配置
 4. 验证API密钥的有效性和权限
 5. 提交 [GitHub Issue](https://github.com/echoVic/flow-ai/issues) 寻求帮助
