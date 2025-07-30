@@ -2,15 +2,15 @@
  * 架构图预览组件
  * 使用 Zustand 状态管理，实时渲染 Mermaid 图表，支持缩放和导出
  */
-import { useMemoizedFn } from 'ahooks';
-import { motion } from 'framer-motion';
-import { AlertTriangle, Download, Maximize, RotateCcw, Sparkles, ZoomIn, ZoomOut, Palette, ChevronDown, Brush } from 'lucide-react';
-import mermaid from 'mermaid';
-import React, { useEffect, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
 import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
 import { useAppStore } from '@/lib/stores/appStore';
 import { useCurrentDiagram, usePreviewConfig } from '@/lib/stores/hooks';
+import { useMemoizedFn } from 'ahooks';
+import { motion } from 'framer-motion';
+import { AlertTriangle, Brush, ChevronDown, Maximize, Palette, RotateCcw, Sparkles, ZoomIn, ZoomOut } from 'lucide-react';
+import mermaid from 'mermaid';
+import React, { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 
 // 错误信息接口
 interface MermaidError {
@@ -30,12 +30,14 @@ const DiagramPreview: React.FC = () => {
   const [isAiFixing, setIsAiFixing] = useState(false);
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
   const [isLookDropdownOpen, setIsLookDropdownOpen] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const renderIdRef = useRef(0);
   const initializationRef = useRef(false);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const themeDropdownRef = useRef<HTMLDivElement>(null);
   const lookDropdownRef = useRef<HTMLDivElement>(null);
+
   const { optimizeDiagram } = useDiagramGenerator();
 
   // AI Fix 功能
@@ -460,38 +462,7 @@ ${cleanedCode}`;
     });
   };
 
-  const handleExportImage = async () => {
-    const svgElement = containerRef.current?.querySelector('svg');
-    if (!svgElement) {
-      toast.error('没有可导出的图表');
-      return;
-    }
 
-    try {
-      // 克隆SVG以避免影响原图
-      const clonedSvg = svgElement.cloneNode(true) as SVGElement;
-      
-      // 设置白色背景
-      clonedSvg.style.background = 'white';
-      
-      const svgData = new XMLSerializer().serializeToString(clonedSvg);
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${currentDiagram.title || 'diagram'}.svg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      toast.success('图表导出成功！');
-    } catch (error) {
-      console.error('导出失败:', error);
-      toast.error('导出失败，请重试');
-    }
-  };
 
   const handleThemeChange = (theme: 'default' | 'base' | 'dark' | 'forest' | 'neutral' | 'null') => {
     setPreviewConfig({
@@ -522,6 +493,7 @@ ${cleanedCode}`;
       if (lookDropdownRef.current && !lookDropdownRef.current.contains(event.target as Node)) {
         setIsLookDropdownOpen(false);
       }
+
     };
 
     if (isThemeDropdownOpen || isLookDropdownOpen) {
@@ -693,16 +665,7 @@ ${cleanedCode}`;
             <RotateCcw size={16} />
           </motion.button>
           
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleExportImage}
-            className="p-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white"
-            title="导出SVG"
-            disabled={!isInitialized || isLoading || !!error}
-          >
-            <Download size={16} />
-          </motion.button>
+
         </div>
       </div>
 
