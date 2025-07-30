@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * 架构图生成器主组件
  * 使用 Zustand 状态管理，整合所有功能模块
@@ -7,10 +9,10 @@ import { useSidebarOpen } from '@/lib/stores/hooks';
 import { motion } from 'framer-motion';
 import { Bot } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import ConversationalDiagramPanel from '../chat/ConversationalDiagramPanel';
+import FloatWindow from '../ui/FloatWindow';
 import CodeEditor from './CodeEditor';
-import ConversationalDiagramPanel from './ConversationalDiagramPanel';
 import DiagramPreview from './DiagramPreview';
-import FloatWindow from './FloatWindow';
 import Header from './Header';
 import Sidebar from './Sidebar';
 

@@ -2,15 +2,15 @@
  * 头部组件
  * 使用 Zustand 状态管理，包含标题、工具栏按钮和状态指示器
  */
+import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
+import { useDiagramHistory } from '@/lib/hooks/useDiagramHistory';
+import { useCurrentDiagram, useSidebarOpen, useUIActions } from '@/lib/stores/hooks';
 import { motion } from 'framer-motion';
 import { Download, Menu, RotateCcw, Save, Share2 } from 'lucide-react';
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
-import { useDiagramHistory } from '@/lib/hooks/useDiagramHistory';
-import { useCurrentDiagram, useSidebarOpen } from '@/lib/stores/hooks';
-import { useUIActions } from '@/lib/stores/hooks';
-import SaveModal from './Header/SaveModal';
+import SaveModal from '../modals/SaveModal';
+
 
 const Header: React.FC = () => {
   const sidebarOpen = useSidebarOpen();

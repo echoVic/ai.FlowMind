@@ -1,4 +1,4 @@
-import DiagramGenerator from '@/components/diagram/generator';
+import DiagramGenerator from '@/components/diagram/DiagramGenerator';
 
 export default function DiagramPage() {
   return (

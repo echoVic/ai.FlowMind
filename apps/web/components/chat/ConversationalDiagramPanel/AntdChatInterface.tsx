@@ -59,7 +59,6 @@ const AntdChatInterface: React.FC = () => {
   // 简化状态管理（参考官方 demo）
   const [inputValue, setInputValue] = useState('');
   const [thoughtSteps, setThoughtSteps] = useState<ThoughtStep[]>([]);
-  const [showThoughtChain, setShowThoughtChain] = useState(false);
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
   const [thoughtChainExpanded, setThoughtChainExpanded] = useState<string[]>([]);
 
@@ -126,7 +125,6 @@ const AntdChatInterface: React.FC = () => {
   // 重置思考链
   const resetThoughtChain = useMemoizedFn(() => {
     setThoughtSteps([]);
-    setShowThoughtChain(true);
     const requestId = Date.now().toString();
     setCurrentRequestId(requestId);
     // 新请求开始时自动展开思维链
@@ -504,7 +502,6 @@ const AntdChatInterface: React.FC = () => {
       setThoughtSteps([]);
       setCurrentRequestId(null);
       setThoughtChainExpanded([]);
-      setShowThoughtChain(false);
       
       // 通知后端清空对话历史
       await fetch('/api/chat/clear', {
@@ -646,14 +643,7 @@ const AntdChatInterface: React.FC = () => {
             style={{ width: 140 }}
             options={diagramTypeOptions}
           />
-          <Tooltip title="显示思考过程">
-            <Button 
-              type={showThoughtChain ? 'primary' : 'text'}
-              icon={<RobotOutlined />} 
-              size="small"
-              onClick={() => setShowThoughtChain(!showThoughtChain)}
-            />
-          </Tooltip>
+
           <Tooltip title="清空对话">
             <Button 
               type="text" 
@@ -705,7 +695,7 @@ const AntdChatInterface: React.FC = () => {
                     />
                     
                     {/* 在用户消息后显示思维链 */}
-                    {showThoughtChainHere && showThoughtChain && renderEmbeddedThoughtChain(
+                    {showThoughtChainHere && renderEmbeddedThoughtChain(
                       isLastUserMessage && agent.isRequesting(),
                       isLastUserMessage ? currentRequestId || '' : `completed-${index}`
                     )}
