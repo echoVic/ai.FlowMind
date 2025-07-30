@@ -62,6 +62,7 @@ const AntdChatInterface: React.FC = () => {
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
   const [thoughtChainExpanded, setThoughtChainExpanded] = useState<string[]>([]);
 
+
   // 图表类型选项
   const diagramTypeOptions = [
     { value: 'flowchart', label: '🔄 流程图' },
@@ -335,6 +336,8 @@ const AntdChatInterface: React.FC = () => {
     },
   });
 
+
+
   // 配置聊天功能
   const { onRequest, messages, setMessages } = useXChat({
     agent,
@@ -575,6 +578,8 @@ const AntdChatInterface: React.FC = () => {
       scrollToBottom();
     }
   }, [thoughtSteps, agent, scrollToBottom]);
+
+
 
   // 组件挂载时滚动到底部
   useEffect(() => {

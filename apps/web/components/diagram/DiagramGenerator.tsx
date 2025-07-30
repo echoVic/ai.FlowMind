@@ -20,7 +20,7 @@ const DiagramGenerator: React.FC = () => {
   const sidebarOpen = useSidebarOpen();
   const { loadModels } = useModelManager();
   const [isConversationOpen, setIsConversationOpen] = useState(false);
-  const [isFloatWindowMinimized, setIsFloatWindowMinimized] = useState(false);
+
 
   // 加载AI模型
   useEffect(() => {
@@ -77,9 +77,7 @@ const DiagramGenerator: React.FC = () => {
       {/* 悬浮窗 */}
       <FloatWindow 
         isOpen={isConversationOpen} 
-        onClose={() => setIsConversationOpen(false)} 
-        isMinimized={isFloatWindowMinimized}
-        onMinimizeToggle={() => setIsFloatWindowMinimized(!isFloatWindowMinimized)}
+        onClose={() => setIsConversationOpen(false)}
       >
         <ConversationalDiagramPanel />
       </FloatWindow>
@@ -89,12 +87,6 @@ const DiagramGenerator: React.FC = () => {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => {
-          // 如果浮窗被最小化了，恢复它
-          if (isFloatWindowMinimized) {
-            setIsFloatWindowMinimized(false);
-            return;
-          }
-          
           // 切换对话面板
           setIsConversationOpen(!isConversationOpen);
         }}
