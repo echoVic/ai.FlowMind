@@ -4,16 +4,17 @@
  */
 import AddCustomModelModal from '@/components/modals/AddCustomModelModal';
 import { useInputPanel } from '@/lib/stores/hooks';
+import { getCurrentSessionId } from '@/lib/utils/sessionUtils';
 import {
-  CheckCircleOutlined,
-  ClearOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-  LoadingOutlined,
-  PlusOutlined,
-  RobotOutlined,
-  SettingOutlined,
-  UserOutlined
+    CheckCircleOutlined,
+    ClearOutlined,
+    ClockCircleOutlined,
+    ExclamationCircleOutlined,
+    LoadingOutlined,
+    PlusOutlined,
+    RobotOutlined,
+    SettingOutlined,
+    UserOutlined
 } from '@ant-design/icons';
 import { Bubble, Prompts, Sender, ThoughtChain, ThoughtChainItem, useXAgent, useXChat, Welcome } from '@ant-design/x';
 import { useMemoizedFn } from 'ahooks';
@@ -197,7 +198,8 @@ const AntdChatInterface: React.FC = () => {
               messages: messagesToSend,
               model: selectedModel,
               diagramType: currentDiagram.diagramType,
-              userId: 'default'
+              userId: 'default',
+              sessionId: getCurrentSessionId()
             }),
           });
 
@@ -522,7 +524,8 @@ const AntdChatInterface: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: selectedModel
+          model: selectedModel,
+          sessionId: getCurrentSessionId()
         }),
       }).catch(err => {
         console.warn('清空后端对话历史失败:', err);

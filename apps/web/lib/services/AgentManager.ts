@@ -1,6 +1,6 @@
 /**
  * AI Agent 管理服务
- * 统一管理不同的 AI Agent 实例，提供简单的调用接口
+ * 统一管理不同的 AI Agent 实例，提供会话级隔离
  */
 import type { AIModelConfig } from '@/types/types';
 import { DiagramAgent, DiagramAgentFactory, type DiagramGenerationRequest, type DiagramGenerationResult } from '../agents/DiagramAgent';
@@ -17,6 +17,7 @@ interface AgentConfig {
 
 class AgentManager {
   private agents: Map<string, DiagramAgent> = new Map();
+  private sessionAgents: Map<string, Map<string, DiagramAgent>> = new Map(); // sessionId -> modelKey -> agent
   private defaultAgent: DiagramAgent | null = null;
 
   /**
@@ -29,8 +30,8 @@ class AgentManager {
   /**
    * 生成图表
    */
-  async generateDiagram(request: DiagramGenerationRequest, agentKey?: string): Promise<DiagramGenerationResult> {
-    const agent = this.getAgent(agentKey);
+  async generateDiagram(request: DiagramGenerationRequest, agentKey?: string, sessionId?: string): Promise<DiagramGenerationResult> {
+    const agent = this.getAgent(agentKey, sessionId);
     if (!agent) {
       throw new Error(`Agent not found: ${agentKey || 'default'}`);
     }
@@ -44,9 +45,10 @@ class AgentManager {
   async generateDiagramStream(
     request: DiagramGenerationRequest, 
     onStream?: (chunk: string) => void,
-    agentKey?: string
+    agentKey?: string,
+    sessionId?: string
   ): Promise<DiagramGenerationResult> {
-    const agent = this.getAgent(agentKey);
+    const agent = this.getAgent(agentKey, sessionId);
     if (!agent) {
       throw new Error(`Agent not found: ${agentKey || 'default'}`);
     }
@@ -57,8 +59,8 @@ class AgentManager {
   /**
    * 优化图表
    */
-  async optimizeDiagram(mermaidCode: string, requirements: string, agentKey?: string): Promise<DiagramGenerationResult> {
-    const agent = this.getAgent(agentKey);
+  async optimizeDiagram(mermaidCode: string, requirements: string, agentKey?: string, sessionId?: string): Promise<DiagramGenerationResult> {
+    const agent = this.getAgent(agentKey, sessionId);
     if (!agent) {
       throw new Error(`Agent not found: ${agentKey || 'default'}`);
     }
@@ -123,13 +125,112 @@ class AgentManager {
   }
 
   /**
-   * 获取 Agent
+   * 获取 Agent（支持会话隔离）
    */
-  getAgent(key?: string): DiagramAgent | null {
+  getAgent(key?: string, sessionId?: string): DiagramAgent | null {
+    // 如果提供了sessionId，优先从会话级Agent中获取
+    if (sessionId) {
+      const sessionAgents = this.sessionAgents.get(sessionId);
+      if (sessionAgents) {
+        const agent = sessionAgents.get(key || 'default');
+        if (agent) {
+          return agent;
+        }
+      }
+      
+      // 如果会话级Agent不存在，创建一个新的
+      return this.createSessionAgent(key || 'default', sessionId);
+    }
+    
+    // 没有sessionId时，使用全局Agent（向后兼容）
     if (!key) {
       return this.defaultAgent;
     }
     return this.agents.get(key) || null;
+  }
+
+  /**
+   * 创建会话级Agent
+   */
+  private createSessionAgent(agentKey: string, sessionId: string): DiagramAgent | null {
+    // 获取全局Agent配置作为模板
+    const templateAgent = this.agents.get(agentKey) || this.defaultAgent;
+    if (!templateAgent) {
+      console.warn(`No template agent found for key: ${agentKey}`);
+      return null;
+    }
+
+    // 创建新的Agent实例（复制配置但独立历史）
+    let newAgent: DiagramAgent;
+    
+    // 根据默认Agent的类型创建相应的新实例
+    if (agentKey.includes('volcengine') || !agentKey.includes('-')) {
+      const arkApiKey = process.env.NEXT_PUBLIC_ARK_API_KEY;
+      if (!arkApiKey) return null;
+      
+      newAgent = DiagramAgentFactory.createVolcengineAgent({
+        apiKey: arkApiKey,
+        modelName: agentKey.includes('-') ? agentKey : process.env.NEXT_PUBLIC_ARK_MODEL_NAME || 'ep-20250617131345-rshkp',
+        temperature: parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7'),
+        maxTokens: parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || '2048'),
+        enableMemory: true
+      });
+    } else if (agentKey.includes('qwen')) {
+      const qwenApiKey = process.env.NEXT_PUBLIC_QWEN_API_KEY;
+      if (!qwenApiKey) return null;
+      
+      newAgent = DiagramAgentFactory.createQwenAgent({
+        apiKey: qwenApiKey,
+        endpoint: process.env.NEXT_PUBLIC_QWEN_ENDPOINT || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        modelName: agentKey,
+        temperature: parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7'),
+        maxTokens: parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || '2048'),
+        enableMemory: true
+      });
+    } else if (agentKey.includes('openai') || agentKey.includes('gpt')) {
+      const openaiApiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+      if (!openaiApiKey) return null;
+      
+      newAgent = DiagramAgentFactory.createOpenAIAgent({
+        apiKey: openaiApiKey,
+        modelName: agentKey,
+        temperature: parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7'),
+        maxTokens: parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || '2048'),
+        enableMemory: true
+      });
+    } else if (agentKey.includes('claude') || agentKey.includes('anthropic')) {
+      const anthropicApiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
+      if (!anthropicApiKey) return null;
+      
+      newAgent = DiagramAgentFactory.createClaudeAgent({
+        apiKey: anthropicApiKey,
+        modelName: agentKey,
+        temperature: parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7'),
+        maxTokens: parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || '2048'),
+        enableMemory: true
+      });
+    } else {
+      // 默认使用火山引擎
+      const arkApiKey = process.env.NEXT_PUBLIC_ARK_API_KEY;
+      if (!arkApiKey) return null;
+      
+      newAgent = DiagramAgentFactory.createVolcengineAgent({
+        apiKey: arkApiKey,
+        modelName: agentKey,
+        temperature: parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7'),
+        maxTokens: parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || '2048'),
+        enableMemory: true
+      });
+    }
+
+    // 存储到会话级Agent映射中
+    if (!this.sessionAgents.has(sessionId)) {
+      this.sessionAgents.set(sessionId, new Map());
+    }
+    this.sessionAgents.get(sessionId)!.set(agentKey, newAgent);
+    
+    console.log(`Created session agent: ${agentKey} for session: ${sessionId}`);
+    return newAgent;
   }
 
   /**
@@ -152,24 +253,50 @@ class AgentManager {
   clearAllHistory(): void {
     this.agents.forEach(agent => agent.clearHistory());
     this.defaultAgent?.clearHistory();
+    
+    // 清空所有会话级Agent的历史
+    this.sessionAgents.forEach(sessionMap => {
+      sessionMap.forEach(agent => agent.clearHistory());
+    });
   }
 
   /**
    * 清空指定 Agent 的对话历史
    */
-  clearAgentHistory(agentKey?: string): void {
-    const agent = this.getAgent(agentKey);
+  clearAgentHistory(agentKey?: string, sessionId?: string): void {
+    const agent = this.getAgent(agentKey, sessionId);
     if (agent) {
       agent.clearHistory();
-      console.log(`Agent history cleared: ${agentKey || 'default'}`);
+      console.log(`Agent history cleared: ${agentKey || 'default'} for session: ${sessionId || 'global'}`);
     }
+  }
+
+  /**
+   * 清空指定会话的所有Agent历史
+   */
+  clearSessionHistory(sessionId: string): void {
+    const sessionMap = this.sessionAgents.get(sessionId);
+    if (sessionMap) {
+      sessionMap.forEach((agent, agentKey) => {
+        agent.clearHistory();
+        console.log(`Session agent history cleared: ${agentKey} for session: ${sessionId}`);
+      });
+    }
+  }
+
+  /**
+   * 删除指定会话的所有Agent
+   */
+  removeSession(sessionId: string): void {
+    this.sessionAgents.delete(sessionId);
+    console.log(`Session removed: ${sessionId}`);
   }
 
   /**
    * 获取指定 Agent 的对话历史
    */
-  getAgentHistory(agentKey?: string): Array<{role: string, content: string}> {
-    const agent = this.getAgent(agentKey);
+  getAgentHistory(agentKey?: string, sessionId?: string): Array<{role: string, content: string}> {
+    const agent = this.getAgent(agentKey, sessionId);
     if (agent && typeof agent.getConversationHistory === 'function') {
       return agent.getConversationHistory();
     }
@@ -297,9 +424,9 @@ class AgentManager {
   /**
    * 测试 Agent 连接
    */
-  async testAgent(key: string): Promise<{ success: boolean; message: string; details?: any }> {
+  async testAgent(key: string, sessionId?: string): Promise<{ success: boolean; message: string; details?: any }> {
     try {
-      const agent = this.getAgent(key);
+      const agent = this.getAgent(key, sessionId);
       if (!agent) {
         return {
           success: false,

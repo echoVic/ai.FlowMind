@@ -8,15 +8,16 @@ import type { DiagramGenerationRequest } from '../agents/DiagramAgent';
 import { agentManager } from '../services/AgentManager';
 import { useAppStore } from '../stores/appStore';
 import {
-  useAiResponse,
-  useAvailableModels,
-  useCurrentDiagram,
-  useDirectCallConfig,
-  useIsGenerating,
-  useIsOptimizing,
-  useNaturalLanguageInput,
-  useSelectedModel
+    useAiResponse,
+    useAvailableModels,
+    useCurrentDiagram,
+    useDirectCallConfig,
+    useIsGenerating,
+    useIsOptimizing,
+    useNaturalLanguageInput,
+    useSelectedModel
 } from '../stores/hooks';
+import { extendSession, getCurrentSessionId } from '../utils/sessionUtils';
 
 /**
  * 根据模型名称推断提供商类型
@@ -191,8 +192,15 @@ export const useDiagramGenerator = () => {
       console.log('发送给 Agent 的请求:', request);
       console.log('使用的 Agent:', agentKey || 'default');
 
-      // 使用 Agent 生成图表
-      const result = await agentManager.generateDiagram(request, agentKey);
+      // 获取当前会话ID
+      const sessionId = getCurrentSessionId();
+      console.log('使用会话ID:', sessionId);
+      
+      // 使用 Agent 生成图表（带会话隔离）
+      const result = await agentManager.generateDiagram(request, agentKey, sessionId);
+      
+      // 延长会话有效期
+      extendSession();
 
       console.log('Agent 生成成功，结果:', result);
 
@@ -316,12 +324,20 @@ export const useDiagramGenerator = () => {
         }
       }
 
-      // 使用 Agent 优化图表
+      // 获取当前会话ID
+      const sessionId = getCurrentSessionId();
+      console.log('使用会话ID:', sessionId);
+      
+      // 使用 Agent 优化图表（带会话隔离）
       const result = await agentManager.optimizeDiagram(
         currentDiagram.mermaidCode,
         requirements,
-        agentKey
+        agentKey,
+        sessionId
       );
+      
+      // 延长会话有效期
+      extendSession();
 
       console.log('Agent 优化成功，结果:', result);
 
@@ -382,7 +398,9 @@ export const useDiagramGenerator = () => {
         enableMemory: false
       });
 
-      const result = await agentManager.testAgent(testAgentKey);
+      // 获取当前会话ID进行测试
+      const sessionId = getCurrentSessionId();
+      const result = await agentManager.testAgent(testAgentKey, sessionId);
       
       // 清理测试 Agent
       agentManager.removeAgent(testAgentKey);
@@ -456,7 +474,10 @@ export const useDiagramGenerator = () => {
     setNaturalInput('');
     setAiResponse(null);
     setErrorMessage(null);
-    agentManager.clearAllHistory();
+    
+    // 清空当前会话的历史
+    const sessionId = getCurrentSessionId();
+    agentManager.clearSessionHistory(sessionId);
   };
 
   return {

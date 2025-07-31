@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     console.log('Received request body:', JSON.stringify(body, null, 2));
-    const { messages, model, diagramType, userId } = body;
+    const { messages, model, diagramType, userId, sessionId } = body;
     
     // 验证必需字段
     if (!messages || !Array.isArray(messages)) {
@@ -51,23 +51,28 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // 获取或创建 Agent 实例，启用内存功能
-    let agent = agentManager.getAgent(model);
+    // 生成会话ID（如果没有提供）
+    const currentSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // 获取或创建 Agent 实例，启用内存功能和会话隔离
+    let agent = agentManager.getAgent(model, currentSessionId);
     if (!agent) {
-      // 直接使用前端传来的model值作为modelName，前端已经处理了模型映射
-      // 使用默认配置注册新Agent，启用内存功能
-      agentManager.registerAgent(model, {
-        apiKey: apiKey,
-        provider: 'volcengine' as const,
-        modelName: model, // 直接使用model参数值
-        enableMemory: true
-      });
-      agent = agentManager.getAgent(model);
+      // 如果会话级Agent不存在，先确保全局Agent存在
+      if (!agentManager.getAgent(model)) {
+        agentManager.registerAgent(model, {
+          apiKey: apiKey,
+          provider: 'volcengine' as const,
+          modelName: model,
+          enableMemory: true
+        });
+      }
       
-      // 如果仍然没有 Agent，返回错误
+      // 再次尝试获取会话级Agent（会自动创建）
+      agent = agentManager.getAgent(model, currentSessionId);
+      
       if (!agent) {
         return new Response(
-          JSON.stringify({ error: `Failed to create agent for model: ${model}` }),
+          JSON.stringify({ error: `Failed to create session agent for model: ${model}` }),
           { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
       }
@@ -88,7 +93,7 @@ export async function POST(req: NextRequest) {
         async start(controller) {
           try {
             console.log('开始流式生成图表...');
-            // 使用 AgentManager 的流式生成方法
+            // 使用 AgentManager 的流式生成方法（带会话ID）
             result = await agentManager.generateDiagramStream({
               description: userMessage,
               diagramType: diagramType || 'flowchart'
@@ -97,14 +102,15 @@ export async function POST(req: NextRequest) {
               // 实时发送流式数据
               const encoded = encoder.encode(chunk);
               controller.enqueue(encoded);
-            }, model);
+            }, model, currentSessionId);
             console.log('流式生成完成:', result);
             
             // 发送结束标记和元数据
             const metadata = {
               type: 'diagram',
               diagramCode: result.mermaidCode,
-              diagramType: result.diagramType || diagramType || 'flowchart'
+              diagramType: result.diagramType || diagramType || 'flowchart',
+              sessionId: currentSessionId
             };
             
             const endMarker = `\n[METADATA]${JSON.stringify(metadata)}[/METADATA]`;
@@ -140,14 +146,15 @@ export async function POST(req: NextRequest) {
       }, (chunk: string) => {
         streamingContent += chunk;
         console.log('收到流式数据块:', chunk);
-      }, model);
+      }, model, currentSessionId);
       
       // 构造响应 - 匹配客户端期望的格式
       const responseContent = result.explanation || '图表已生成';
       const metadata = {
         type: 'diagram',
         diagramCode: result.mermaidCode,
-        diagramType: result.diagramType || diagramType || 'flowchart'
+        diagramType: result.diagramType || diagramType || 'flowchart',
+        sessionId: currentSessionId
       };
       
       // 按照客户端期望的格式返回：内容 + 元数据标签
