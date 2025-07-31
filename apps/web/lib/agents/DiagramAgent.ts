@@ -417,7 +417,7 @@ export class DiagramAgent {
     this.model = config.model;
     
     // 初始化系统提示
-    this.initializeSystemPrompt();
+    this.initializeSystemPrompt('generation');
   }
 
   /**
@@ -436,7 +436,7 @@ export class DiagramAgent {
 
       // 构建提示消息
       const userPrompt = this.buildGenerationPrompt(request);
-      const messages = this.buildMessages(userPrompt);
+      const messages = this.buildMessages(userPrompt, request);
 
       // 调用 AI 模型
       const response = await this.invokeModel(messages, onStream);
@@ -464,23 +464,41 @@ export class DiagramAgent {
    * 优化图表
    */
   async optimizeDiagram(mermaidCode: string, requirements: string): Promise<DiagramGenerationResult> {
-    const request: DiagramGenerationRequest = {
-      description: requirements,
-      existingCode: mermaidCode,
-      optimizationRequirements: requirements
-    };
+    // 临时切换到优化上下文
+    const originalHistory = [...this.conversationHistory];
+    this.initializeSystemPrompt('optimization');
+    
+    try {
+      const request: DiagramGenerationRequest = {
+        description: requirements,
+        existingCode: mermaidCode,
+        optimizationRequirements: requirements
+      };
 
-    return this.generateDiagram(request);
+      return await this.generateDiagram(request);
+    } finally {
+      // 恢复原始对话历史
+      this.conversationHistory = originalHistory;
+    }
   }
 
   /**
    * 批量生成图表
    */
   async batchGenerateDiagrams(requests: DiagramGenerationRequest[]): Promise<DiagramGenerationResult[]> {
-    const results = await Promise.all(
-      requests.map(request => this.generateDiagram(request))
-    );
-    return results;
+    // 临时切换到批量生成上下文
+    const originalHistory = [...this.conversationHistory];
+    this.initializeSystemPrompt('batch');
+    
+    try {
+      const results = await Promise.all(
+        requests.map(request => this.generateDiagram(request))
+      );
+      return results;
+    } finally {
+      // 恢复原始对话历史
+      this.conversationHistory = originalHistory;
+    }
   }
 
   /**
@@ -488,14 +506,14 @@ export class DiagramAgent {
    */
   clearHistory(): void {
     this.conversationHistory = [];
-    this.initializeSystemPrompt();
+    this.initializeSystemPrompt('generation');
   }
 
   /**
    * 设置对话历史
    */
   setConversationHistory(history: Array<{role: string, content: string}>): void {
-    this.conversationHistory = [new SystemMessage(this.getSystemPrompt())];
+    this.conversationHistory = [new SystemMessage(this.getOptimizedSystemPrompt())];
     
     for (const msg of history) {
       if (msg.role === 'user') {
@@ -524,72 +542,66 @@ export class DiagramAgent {
    * 获取系统提示
    */
   private getSystemPrompt(): string {
-    return `你是一个专业的架构图生成专家。请根据用户的描述生成高质量的Mermaid代码。
+    return this.getOptimizedSystemPrompt();
+  }
 
-🔥 关键规则 - 必须严格遵守：
-1. 严格按照Mermaid语法规范生成代码
-2. 根据描述选择最合适的图表类型
-3. 节点命名要清晰、有意义，绝对不能使用保留关键字
-4. 连接关系要符合逻辑
-5. 代码结构要清晰易读
+  /**
+   * 获取优化的系统提示词
+   */
+  private getOptimizedSystemPrompt(): string {
+    return `你是专业的 Mermaid 图表生成专家。
 
-🚫 绝对禁止使用的保留关键字作为节点ID：
-end, start, stop, class, state, note, loop, alt, opt, par, critical, break, rect, activate, deactivate, if, else, elseif, endif
+核心规则：
+1. 严格使用标准 Mermaid 语法
+2. 节点ID必须符合规范：字母开头，可含字母数字下划线
+3. 避免保留关键字：end, start, class, state 等，改用 endNode, startNode 等
+4. 中文标签格式：nodeId[中文标签]，标签内避免换行符和特殊符号
+5. 箭头前后加空格：nodeA --> nodeB
 
-✅ 正确的节点ID命名规范：
-- 使用描述性名称：startNode, endNode, processStep, checkPoint, resultNode
-- 字母开头，可包含字母、数字、下划线
-- 避免单个词汇，使用组合词：loginProcess, dataValidation, userRegistration
-- 中文标签放在方括号内：startNode[开始], endNode([结束])
+返回格式（严格JSON）：
+{
+  "mermaidCode": "完整的mermaid代码",
+  "explanation": "简要说明",
+  "suggestions": ["建议1", "建议2"],
+  "diagramType": "图表类型"
+}
 
-✅ 正确的语法格式：
-- 箭头前后要有空格：nodeA --> nodeB
-- 每行代码结尾不要有多余空格
-- 确保所有节点ID在整个图表中唯一
+示例：
+{
+  "mermaidCode": "flowchart TD\\n    startNode[开始] --> processNode[处理数据]\\n    processNode --> endNode[结束]",
+  "explanation": "简单的流程图",
+  "suggestions": ["可添加更多步骤", "优化节点布局"],
+  "diagramType": "flowchart"
+}
 
-📝 标准模板示例：
-\`\`\`
-flowchart TD
-    startNode([开始]) --> inputData[输入数据]
-    inputData --> processData[处理数据]
-    processData --> checkResult{检查结果}
-    checkResult -->|成功| outputResult[输出结果]
-    checkResult -->|失败| errorHandle[错误处理]
-    outputResult --> endNode([结束])
-    errorHandle --> endNode
-\`\`\`
+支持类型：flowchart, sequence, class, state, er, journey, gantt, pie, quadrant, mindmap, gitgraph, kanban, architecture, packet`;
+  }
 
-⚠️ 特别注意：
-- 绝对不要使用 "end" 作为节点ID，必须使用 "endNode" 或 "finishNode"
-- 绝对不要使用 "start" 作为节点ID，必须使用 "startNode" 或 "beginNode"
-- 绝对不要使用 "class" 作为节点ID，必须使用 "classNode" 或 "classInfo"
-- 绝对不要使用 "state" 作为节点ID，必须使用 "stateNode" 或 "statusNode"
-
-支持的图表类型：
-- flowchart: 流程图 (推荐用于业务流程、系统架构)
-- sequence: 时序图 (推荐用于交互流程、API调用)
-- class: 类图 (推荐用于系统设计、数据结构)
-- state: 状态图 (推荐用于对象生命周期、协议状态机)
-- er: 实体关系图 (推荐用于数据库设计)
-- journey: 用户旅程图 (推荐用于用户体验设计)
-- gantt: 甘特图 (推荐用于项目计划、时间安排)
-- pie: 饼图 (推荐用于数据统计、比例展示)
-- quadrant: 四象限图 (推荐用于战略分析、优先级排序)
-- mindmap: 思维导图 (推荐用于头脑风暴、知识整理)
-- gitgraph: Git分支图 (推荐用于版本管理流程)
-- kanban: 看板图 (推荐用于任务管理、敏捷开发)
-- architecture: 架构图 (C4风格，推荐用于复杂系统架构展示)
-- packet: 数据包图 (推荐用于网络协议分析)
-
-请严格按照以下JSON格式返回：
-{\n  "mermaidCode": "这里是生成的mermaid代码",\n  "explanation": "简要说明代码的功能和结构",\n  "suggestions": ["优化建议1", "优化建议2"],\n  "diagramType": "图表类型"\n}`;
+  /**
+   * 获取针对特定场景的系统提示词
+   */
+  private getContextualSystemPrompt(context: 'optimization' | 'generation' | 'batch'): string {
+    const basePrompt = this.getOptimizedSystemPrompt();
+    
+    switch (context) {
+      case 'optimization':
+        return basePrompt + `\n\n特别注意：这是优化任务，请保持原有图表的核心结构，只进行必要的改进。`;
+      
+      case 'batch':
+        return basePrompt + `\n\n特别注意：这是批量生成任务，请确保每个图表都独立完整，风格保持一致。`;
+      
+      case 'generation':
+      default:
+        return basePrompt;
+    }
   }
 
   /**
    * 初始化系统提示
    */
-  private initializeSystemPrompt(): void {
-    this.conversationHistory = [new SystemMessage(this.getSystemPrompt())];
+  private initializeSystemPrompt(context: 'optimization' | 'generation' | 'batch' = 'generation'): void {
+    const systemPrompt = this.getContextualSystemPrompt(context);
+    this.conversationHistory = [new SystemMessage(systemPrompt)];
   }
 
   /**
@@ -634,11 +646,30 @@ ${request.existingCode}
   /**
    * 构建消息列表
    */
-  private buildMessages(userPrompt: string): BaseMessage[] {
+  private buildMessages(userPrompt: string, request?: DiagramGenerationRequest): BaseMessage[] {
     // 创建临时消息数组，不修改conversationHistory
     const messages = [...this.conversationHistory];
+    
+    // 根据请求类型动态调整系统提示
+    if (request && messages.length > 0 && messages[0]._getType() === 'system') {
+      const context = this.determineContext(request);
+      if (context !== 'generation') {
+        messages[0] = new SystemMessage(this.getContextualSystemPrompt(context));
+      }
+    }
+    
     messages.push(new HumanMessage(userPrompt));
     return messages;
+  }
+
+  /**
+   * 根据请求确
+   */
+  private determineContext(request: DiagramGenerationRequest): 'optimization' | 'generation' | 'batch' {
+    if (request.existingCode && request.optimizationRequirements) {
+      return 'optimization';
+    }
+    return 'generation';
   }
 
   /**
@@ -706,229 +737,331 @@ ${request.existingCode}
   }
 
   /**
-   * 预处理和修复 Mermaid 代码中的常见问题
+   * 安全预处理 Mermaid 代码 - 避免过度处理
    */
   private preprocessMermaidCode(code: string): string {
-    console.log('DiagramAgent: 开始预处理 Mermaid 代码');
+    return this.preprocessMermaidCodeSafely(code);
+  }
+
+  /**
+   * 安全预处理 Mermaid 代码的实现
+   */
+  private preprocessMermaidCodeSafely(code: string): string {
+    console.log('开始安全预处理 Mermaid 代码');
     
-    // 定义保留关键字映射 - 扩展版本
-    const reservedKeywords = {
-      'end': 'endNode',
-      'start': 'startNode', 
-      'stop': 'stopNode',
-      'class': 'classNode',
-      'state': 'stateNode',
-      'note': 'noteNode',
-      'loop': 'loopNode',
-      'alt': 'altNode',
-      'opt': 'optNode',
-      'par': 'parNode',
-      'critical': 'criticalNode',
-      'break': 'breakNode',
-      'rect': 'rectNode',
-      'activate': 'activateNode',
-      'deactivate': 'deactivateNode',
-      'if': 'ifNode',
-      'else': 'elseNode',
-      'elseif': 'elseifNode',
-      'endif': 'endifNode',
-      // 添加更多可能的保留关键字
-      'and': 'andNode',
-      'or': 'orNode',
-      'not': 'notNode',
-      'true': 'trueNode',
-      'false': 'falseNode'
-    };
+    // 首先检查是否真的需要预处理
+    if (!this.needsPreprocessing(code)) {
+      console.log('代码无需预处理，保持原样');
+      return code;
+    }
     
-    let processedCode = code.trim();
+    const lines = code.split('\n');
     let hasChanges = false;
     
-    // 按行处理代码
-    const lines = processedCode.split('\n');
     const processedLines = lines.map((line, index) => {
       let processedLine = line.trim();
       
-      // 跳过空行、注释和图表类型声明行
+      // 跳过注释和声明行
       if (!processedLine || 
           processedLine.startsWith('%%') || 
-          processedLine.startsWith('flowchart') ||
-          processedLine.startsWith('graph') ||
-          processedLine.startsWith('sequenceDiagram') ||
-          processedLine.startsWith('classDiagram')) {
+          /^(flowchart|graph|sequenceDiagram|classDiagram|erDiagram|gitgraph|gantt|pie)/i.test(processedLine)) {
         return processedLine;
       }
       
-      // 修复保留关键字问题 - 使用更精确的匹配
-      for (const [reserved, replacement] of Object.entries(reservedKeywords)) {
-        // 创建多个匹配模式
-        const patterns = [
-          // 1. 匹配行开头的保留关键字后跟标签或箭头
-          new RegExp(`^\\s*${reserved}(?=\\[|\\(|\\s*-->|\\s*---|\s*==>)`, 'i'),
-          // 2. 匹配箭头后的保留关键字
-          new RegExp(`(-->|---|==>)\\s+${reserved}(?=\\[|\\(|\\s*$)`, 'i'),
-          // 3. 匹配单独一行的保留关键字
-          new RegExp(`^\\s*${reserved}\\s*$`, 'i'),
-          // 4. 匹配保留关键字后跟标签的情况
-          new RegExp(`\\b${reserved}(?=\\[|\\()`, 'i')
-        ];
-        
-        let lineChanged = false;
-        patterns.forEach(pattern => {
-          if (pattern.test(processedLine)) {
-            console.log(`DiagramAgent: 第${index + 1}行发现保留关键字 "${reserved}"，替换为 "${replacement}"`);
-            processedLine = processedLine.replace(pattern, (match) => {
-              return match.replace(new RegExp(`\\b${reserved}\\b`, 'i'), replacement);
-            });
-            lineChanged = true;
-            hasChanges = true;
-          }
-        });
-        
-        // 如果这一行已经被修改，跳过其他关键字检查以避免重复替换
-        if (lineChanged) break;
+      const originalLine = processedLine;
+      
+      // 只处理明确的保留关键字问题
+      const reservedKeywords = ['end', 'start', 'class', 'state'];
+      const replacements = { 
+        'end': 'endNode', 
+        'start': 'startNode', 
+        'class': 'classNode', 
+        'state': 'stateNode' 
+      };
+      
+      for (const [keyword, replacement] of Object.entries(replacements)) {
+        // 只匹配作为独立节点ID的情况
+        const nodeIdPattern = new RegExp(`\\b${keyword}\\b(?=\\s*[\\[\\(\\{]|\\s*-->)`, 'gi');
+        if (nodeIdPattern.test(processedLine)) {
+          processedLine = processedLine.replace(nodeIdPattern, replacement);
+          console.log(`第${index + 1}行: 替换保留关键字 ${keyword} -> ${replacement}`);
+          hasChanges = true;
+        }
       }
       
-      // 修复箭头格式 - 确保前后有空格
-      const originalLine = processedLine;
+      // 修复明显的箭头格式问题 - 只处理单箭头，避免破坏序列图语法
       processedLine = processedLine
-        // 处理 --> 箭头
-        .replace(/(\w+|\]|\))-->/g, '$1 -->')
-        .replace(/-->(\w+|\[)/g, '--> $1')
-        // 处理 --- 箭头
-        .replace(/(\w+|\]|\))---/g, '$1 ---')
-        .replace(/---(\w+|\[)/g, '--- $1')
-        // 处理 ==> 箭头
-        .replace(/(\w+|\]|\))==>/g, '$1 ==>')
-        .replace(/==>(\w+|\[)/g, '==> $1')
-        // 处理条件箭头 -->|label|
-        .replace(/-->\|([^|]+)\|(\w+)/g, '--> |$1| $2')
-        .replace(/(\w+)\|([^|]+)\|-->/g, '$1 |$2| -->');
+        .replace(/(\w+)-->(?!>)/g, '$1 -->')
+        .replace(/(?<!-)-->(\w+)/g, '--> $1');
       
-      if (originalLine !== processedLine) {
+      if (processedLine !== originalLine && !hasChanges) {
         hasChanges = true;
+        console.log(`第${index + 1}行: 修复了箭头格式`);
       }
       
       return processedLine;
     });
     
-    processedCode = processedLines.join('\n');
+    const result = processedLines.join('\n');
     
-    // 最终清理
-    const finalCode = processedCode
-      // 移除多余的空行（超过2个连续空行）
-      .replace(/\n\s*\n\s*\n+/g, '\n\n')
-      // 确保代码结尾有且仅有一个换行符
-      .replace(/\n*$/, '\n')
-      // 移除行尾空格
-      .replace(/[ \t]+$/gm, '');
-    
-    if (hasChanges || finalCode !== code.trim() + '\n') {
-      console.log('DiagramAgent: 代码已预处理，修复了保留关键字和语法问题');
-      console.log('DiagramAgent: 修复前:', code.substring(0, 150) + '...');
-      console.log('DiagramAgent: 修复后:', finalCode.substring(0, 150) + '...');
+    if (hasChanges) {
+      console.log('预处理完成，已修复必要的语法问题');
+    } else {
+      console.log('预处理完成，无需修改');
     }
     
-    return finalCode;
+    return result;
   }
 
   /**
-   * 解析响应
+   * 检查代码是否需要预处理
+   */
+  private needsPreprocessing(code: string): boolean {
+    // 检查是否包含保留关键字作为节点ID
+    const reservedKeywords = ['end', 'start', 'class', 'state'];
+    const lines = code.split('\n');
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      
+      // 跳过注释和声明行
+      if (!trimmedLine || 
+          trimmedLine.startsWith('%%') || 
+          /^(flowchart|graph|sequenceDiagram|classDiagram|erDiagram|gitgraph|gantt|pie)/i.test(trimmedLine)) {
+        continue;
+      }
+      
+      // 检查保留关键字
+      for (const keyword of reservedKeywords) {
+        const nodeIdPattern = new RegExp(`\\b${keyword}\\b(?=\\s*[\\[\\(\\{]|\\s*-->)`, 'i');
+        if (nodeIdPattern.test(trimmedLine)) {
+          console.log(`发现需要处理的保留关键字: ${keyword}`);
+          return true;
+        }
+      }
+      
+      // 检查箭头格式问题 - 只检查单箭头，避免误判序列图的双箭头
+      if (/(\w+)-->(?!>)/.test(trimmedLine) || /(?<!-)-->(\w+)/.test(trimmedLine)) {
+        console.log('发现需要修复的箭头格式');
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * 修复中文标签格式问题 - 保守策略，只修复明确的问题
+   */
+  private fixChineseLabels(line: string): string {
+    let fixedLine = line;
+    
+    // 只处理明确有问题的情况，避免误伤正常语法
+    
+    // 1. 只修复标签内部包含实际换行符的情况（不是 \\n 转义符）
+    // 这里使用更精确的匹配，确保不会误伤正常的 Mermaid 语法
+    fixedLine = fixedLine.replace(/\[([^[\]]*)\n([^[\]]*)\]/g, '[$1 $2]');  // 实际换行符
+    fixedLine = fixedLine.replace(/\[([^[\]]*)\r\n([^[\]]*)\]/g, '[$1 $2]'); // Windows换行符
+    fixedLine = fixedLine.replace(/\[([^[\]]*)\r([^[\]]*)\]/g, '[$1 $2]');   // Mac换行符
+    
+    // 2. 只处理明显的中文符号问题，保留可能的 Mermaid 语法符号
+    // 使用更保守的匹配，只替换明确的中文标点符号
+    fixedLine = fixedLine.replace(/\[([^[\]]*[（）、，。！？；："'【】《》]+[^[\]]*)\]/g, (match, content) => {
+      // 只替换明显的中文符号，保留可能的 Mermaid 语法符号
+      const cleaned = content
+        .replace(/（/g, '(').replace(/）/g, ')')
+        .replace(/，/g, ' ').replace(/。/g, '.') // 中文逗号替换为空格，避免语法错误
+        .replace(/！/g, '!').replace(/？/g, '?')
+        .replace(/；/g, ';').replace(/：/g, ':')
+        .replace(/"/g, '"').replace(/"/g, '"')
+        .replace(/'/g, "'").replace(/'/g, "'")
+        .replace(/【/g, '[').replace(/】/g, ']')
+        .replace(/《/g, '<').replace(/》/g, '>');
+      return `[${cleaned}]`;
+    });
+    
+    // 3. 只修复明显过长的标签（超过50个字符），避免误伤正常内容
+    fixedLine = fixedLine.replace(/\[([^[\]]{50,})\]/g, (match, content) => {
+      // 如果标签过长，截取前30个字符并添加省略号
+      const simplified = content.length > 30 ? content.substring(0, 30) + '...' : content;
+      return `[${simplified}]`;
+    });
+    
+    // 4. 只移除标签中明确的控制字符，保留正常空格和内容
+    fixedLine = fixedLine.replace(/\[([^[\]]*)\]/g, (match, content) => {
+      // 只替换明确的控制字符，保留正常的空格和内容结构
+      const cleaned = content
+        .replace(/[\r\n\t]/g, ' ')  // 只替换控制字符为空格
+        .replace(/\s{3,}/g, ' ')    // 只合并3个以上的连续空格
+        .replace(/^\s+|\s+$/g, ''); // 只移除首尾空格
+      return `[${cleaned}]`;
+    });
+    
+    return fixedLine;
+  }
+
+  /**
+   * 验证节点ID是否符合规范
+   */
+  private validateNodeId(nodeId: string): string {
+    // 确保节点ID符合规范：字母开头，可包含字母、数字、下划线
+    if (/^[a-zA-Z][a-zA-Z0-9_]*$/.test(nodeId)) {
+      return nodeId;
+    }
+    
+    // 如果不符合规范，生成安全的节点ID
+    const safeId = nodeId
+      .replace(/[^a-zA-Z0-9_]/g, '')  // 移除非法字符
+      .replace(/^[0-9]/, 'node$&');   // 如果以数字开头，添加前缀
+      
+    return safeId || 'defaultNode';
+  }
+
+  /**
+   * 转义特殊字符
+   */
+  private escapeSpecialChars(text: string): string {
+    return text
+      .replace(/\\/g, '\\\\')  // 转义反斜杠
+      .replace(/"/g, '\\"')    // 转义双引号
+      .replace(/'/g, "\\'")    // 转义单引号
+      .replace(/\n/g, '\\n')   // 转义换行符
+      .replace(/\r/g, '\\r')   // 转义回车符
+      .replace(/\t/g, '\\t');  // 转义制表符
+  }
+
+  /**
+   * 解析响应 - 使用健壮的多策略解析
    */
   private parseResponse(response: string, request: DiagramGenerationRequest): DiagramGenerationResult {
-    try {
-      console.log('DiagramAgent: 开始解析响应');
-      console.log('DiagramAgent: 原始响应:', response.substring(0, 200) + '...');
-      
-      // 首先尝试解析JSON响应
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          let jsonString = jsonMatch[0];
-          console.log('DiagramAgent: 提取的JSON字符串:', jsonString.substring(0, 100) + '...');
+    return this.parseResponseRobustly(response, request);
+  }
 
-          // 修复JSON中的控制字符问题
-          try {
-            // 直接解析，如果失败则进行修复
-            const parsed = JSON.parse(jsonString);
-            const validated = this.validateAndCleanResponse(parsed);
-            return this.buildResult(validated, request);
-          } catch (parseError) {
-            console.log('DiagramAgent: JSON解析失败，尝试修复:', (parseError as Error).message);
-            
-            // 尝试修复JSON字符串
-            const fixedJsonString = this.fixJsonString(jsonString);
-            console.log('DiagramAgent: 修复后的JSON:', fixedJsonString.substring(0, 100) + '...');
-            
-            const parsed = JSON.parse(fixedJsonString);
-            const validated = this.validateAndCleanResponse(parsed);
-            return this.buildResult(validated, request);
+  /**
+   * 健壮的响应解析实现
+   */
+  private parseResponseRobustly(response: string, request: DiagramGenerationRequest): DiagramGenerationResult {
+    console.log('开始解析响应:', response.substring(0, 100) + '...');
+    
+    // 策略1: 尝试提取 JSON - 改进匹配逻辑
+    let jsonMatch = response.match(/\{[\s\S]*\}/);
+    
+    // 如果贪婪匹配失败，尝试找到完整的JSON对象
+    if (!jsonMatch) {
+      // 寻找第一个 { 和对应的 }
+      const startIndex = response.indexOf('{');
+      if (startIndex !== -1) {
+        let braceCount = 0;
+        let endIndex = -1;
+        
+        for (let i = startIndex; i < response.length; i++) {
+          if (response[i] === '{') braceCount++;
+          if (response[i] === '}') braceCount--;
+          if (braceCount === 0) {
+            endIndex = i;
+            break;
           }
-        } catch (jsonError) {
-          console.log('DiagramAgent: JSON解析彻底失败，尝试解析为纯Mermaid代码');
+        }
+        
+        if (endIndex !== -1) {
+          jsonMatch = [response.substring(startIndex, endIndex + 1)];
         }
       }
-
-      // 如果JSON解析失败，尝试解析为纯Mermaid代码
-      const mermaidMatch = response.match(/```mermaid\n([\s\S]*?)\n```/);
-      if (mermaidMatch) {
-        let mermaidCode = mermaidMatch[1];
-        console.log('DiagramAgent: 找到Mermaid代码块:', mermaidCode.substring(0, 100) + '...');
-        
-        // 应用预处理，修复保留关键字和语法问题
-        mermaidCode = this.preprocessMermaidCode(mermaidCode);
-        
-        // 自动检测图表类型
-        const detectedType = this.detectDiagramType(mermaidCode);
-        
-        return {
-          mermaidCode: mermaidCode,
-          explanation: '已生成Mermaid图表代码',
-          suggestions: ['可以进一步优化图表结构', '添加更多详细信息', '调整图表样式'],
-          diagramType: detectedType || request.diagramType || 'flowchart',
-          metadata: {
-            model: this.model._llmType(),
-            provider: this.getProviderName()
-          }
-        };
-      }
-
-      // 如果都没有找到，检查是否是纯Mermaid代码
-      if (response.includes('graph') || response.includes('flowchart') || response.includes('sequenceDiagram')) {
-        console.log('DiagramAgent: 检测到纯Mermaid代码');
-        
-        // 应用预处理，修复保留关键字和语法问题
-        let processedCode = this.preprocessMermaidCode(response.trim());
-        const detectedType = this.detectDiagramType(processedCode);
-        
-        return {
-          mermaidCode: processedCode,
-          explanation: '已生成Mermaid图表代码',
-          suggestions: ['可以进一步优化图表结构', '添加更多详细信息', '调整图表样式'],
-          diagramType: detectedType || request.diagramType || 'flowchart',
-          metadata: {
-            model: this.model._llmType(),
-            provider: this.getProviderName()
-          }
-        };
-      }
-
-      throw new Error('无法识别响应格式');
-
-    } catch (error: any) {
-      console.error('DiagramAgent: 响应解析失败', error);
-      
-      // 提供默认响应
-      return {
-        mermaidCode: 'graph TD\n    A[解析失败] --> B[请检查输入]',
-        explanation: '响应解析失败，请重试',
-        suggestions: ['检查网络连接', '重新描述需求', '尝试更简单的描述'],
-        diagramType: request.diagramType || 'flowchart',
-        metadata: {
-          model: this.model._llmType(),
-          provider: this.getProviderName()
-        }
-      };
     }
+    
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.mermaidCode) {
+          console.log('策略1成功: 解析到有效JSON');
+          return this.buildValidResult(parsed, request);
+        }
+      } catch (e) {
+        console.log('JSON 解析失败，尝试修复');
+        try {
+          const fixed = this.fixJsonString(jsonMatch[0]);
+          const parsed = JSON.parse(fixed);
+          console.log('策略1成功: JSON修复后解析成功');
+          return this.buildValidResult(parsed, request);
+        } catch (e2) {
+          console.log('JSON 修复也失败，继续其他策略');
+        }
+      }
+    }
+    
+    // 策略2: 提取 Mermaid 代码块
+    const mermaidMatch = response.match(/```mermaid\s*\n([\s\S]*?)\n```/) || 
+                        response.match(/```mermaid\s*\n([\s\S]*?)```/);
+    if (mermaidMatch) {
+      console.log('策略2成功: 找到Mermaid代码块');
+      const mermaidCode = this.preprocessMermaidCodeSafely(mermaidMatch[1]);
+      return this.buildDefaultResult(mermaidCode, request);
+    }
+    
+    // 策略3: 检测纯 Mermaid 代码
+    if (this.looksLikeMermaidCode(response)) {
+      console.log('策略3成功: 检测到纯Mermaid代码');
+      const cleanCode = this.preprocessMermaidCodeSafely(response.trim());
+      return this.buildDefaultResult(cleanCode, request);
+    }
+    
+    // 策略4: 最后的兜底
+    console.error('所有解析策略都失败');
+    return this.buildDefaultResult('flowchart TD\n    A[解析失败] --> B[请重试]', request);
+  }
+
+  /**
+   * 检测文本是否看起来像Mermaid代码
+   */
+  private looksLikeMermaidCode(text: string): boolean {
+    const mermaidKeywords = ['flowchart', 'graph', 'sequenceDiagram', 'classDiagram', '-->', '---'];
+    return mermaidKeywords.some(keyword => text.includes(keyword));
+  }
+
+  /**
+   * 构建有效的解析结果
+   */
+  private buildValidResult(parsed: any, request: DiagramGenerationRequest): DiagramGenerationResult {
+    let mermaidCode = parsed.mermaidCode || '';
+    
+    // 清理代码块标记
+    mermaidCode = mermaidCode
+      .replace(/^```mermaid\s*\n?/i, '')
+      .replace(/^```\s*\n?/i, '')
+      .replace(/\n?```\s*$/i, '')
+      .trim();
+    
+    // 安全预处理
+    mermaidCode = this.preprocessMermaidCodeSafely(mermaidCode);
+    
+    return {
+      mermaidCode,
+      explanation: parsed.explanation || '已生成图表',
+      suggestions: parsed.suggestions || ['可进一步优化'],
+      diagramType: parsed.diagramType || this.detectDiagramType(mermaidCode),
+      metadata: {
+        model: this.model._llmType(),
+        provider: this.getProviderName()
+      }
+    };
+  }
+
+  /**
+   * 构建默认解析结果
+   */
+  private buildDefaultResult(mermaidCode: string, request: DiagramGenerationRequest): DiagramGenerationResult {
+    const detectedType = this.detectDiagramType(mermaidCode);
+    
+    return {
+      mermaidCode,
+      explanation: '已生成Mermaid图表代码',
+      suggestions: ['可以进一步优化图表结构', '添加更多详细信息', '调整图表样式'],
+      diagramType: detectedType || request.diagramType || 'flowchart',
+      metadata: {
+        model: this.model._llmType(),
+        provider: this.getProviderName()
+      }
+    };
   }
 
   /**
@@ -936,62 +1069,173 @@ ${request.existingCode}
    */
   private fixJsonString(jsonString: string): string {
     try {
-      // 方法1：尝试更简单的修复方法
-      // 首先尝试简单地转义未转义的换行符
-      let fixed = jsonString
-        .replace(/\n/g, '\\n')
-        .replace(/\r/g, '\\r')
-        .replace(/\t/g, '\\t');
-      
-      // 测试是否能解析
-      JSON.parse(fixed);
-      return fixed;
+      // 首先尝试直接解析
+      return JSON.parse(jsonString);
     } catch (error) {
-      console.log('DiagramAgent: 简单修复失败，尝试更复杂的修复');
+      console.log('DiagramAgent: JSON解析失败，开始修复');
       
-      // 方法2：更彻底的修复
+      // 方法1: 精确处理 mermaidCode 字段
       try {
-        // 提取mermaidCode字段的值并单独处理
-        const mermaidCodeMatch = jsonString.match(/"mermaidCode"\s*:\s*"([^"]*(?:\\.[^"]*)*)"(?=\s*,|\s*})/);
-        if (mermaidCodeMatch) {
-          const originalValue = mermaidCodeMatch[1];
-          // 正确转义Mermaid代码中的特殊字符
-          const escapedValue = originalValue
-            .replace(/\\/g, '\\\\')  // 转义反斜杠
-            .replace(/"/g, '\\"')    // 转义双引号
-            .replace(/\n/g, '\\n')   // 转义换行符
-            .replace(/\r/g, '\\r')   // 转义回车符
-            .replace(/\t/g, '\\t');  // 转义制表符
+        const mermaidCodeRegex = /"mermaidCode"\s*:\s*"((?:[^"\\]|\\.)*)"/;
+        const match = jsonString.match(mermaidCodeRegex);
+        
+        if (match) {
+          const originalValue = match[1];
           
-          // 替换原始值
-          const fixedJson = jsonString.replace(mermaidCodeMatch[0], `"mermaidCode": "${escapedValue}"`);
+          // 正确处理转义：保持已转义的内容不变，只转义未转义的内容
+          const fixedValue = originalValue
+            // 先处理已经正确转义的内容，用占位符保护
+            .replace(/\\"/g, '__ESCAPED_QUOTE__')
+            .replace(/\\n/g, '__ESCAPED_NEWLINE__')
+            .replace(/\\r/g, '__ESCAPED_CARRIAGE__')
+            .replace(/\\t/g, '__ESCAPED_TAB__')
+            .replace(/\\\\/g, '__ESCAPED_BACKSLASH__')
+            // 转义未转义的特殊字符
+            .replace(/"/g, '\\"')
+            .replace(/\n/g, '\\n')
+            .replace(/\r/g, '\\r')
+            .replace(/\t/g, '\\t')
+            .replace(/\\/g, '\\\\')
+            // 恢复已正确转义的内容
+            .replace(/__ESCAPED_BACKSLASH__/g, '\\\\')
+            .replace(/__ESCAPED_QUOTE__/g, '\\"')
+            .replace(/__ESCAPED_NEWLINE__/g, '\\n')
+            .replace(/__ESCAPED_CARRIAGE__/g, '\\r')
+            .replace(/__ESCAPED_TAB__/g, '\\t');
+          
+          const fixedJson = jsonString.replace(match[0], `"mermaidCode": "${fixedValue}"`);
           
           // 测试解析
           JSON.parse(fixedJson);
           return fixedJson;
         }
       } catch (error2) {
-        console.log('DiagramAgent: 复杂修复也失败');
+        console.log('DiagramAgent: 精确修复失败，尝试分段重构');
       }
       
-      // 如果所有方法都失败，返回原始字符串
-      return jsonString;
+      // 方法2: 分段重构JSON
+      try {
+        return this.reconstructJson(jsonString);
+      } catch (error3) {
+        console.log('DiagramAgent: 所有修复方法都失败');
+        
+        // 返回默认的有效JSON
+        return JSON.stringify({
+          mermaidCode: 'graph TD\n    A[解析失败] --> B[请重试]',
+          explanation: 'JSON解析失败，已生成默认图表',
+          suggestions: ['检查AI响应格式', '重新生成', '简化描述'],
+          diagramType: 'flowchart'
+        });
+      }
     }
+  }
+
+  /**
+   * 重构JSON字符串
+   */
+  private reconstructJson(jsonString: string): string {
+    // 提取各个字段的值
+    const fields = {
+      mermaidCode: this.extractJsonField(jsonString, 'mermaidCode'),
+      explanation: this.extractJsonField(jsonString, 'explanation') || '代码重构失败',
+      suggestions: this.extractJsonArrayField(jsonString, 'suggestions') || ['请重试', '简化描述'],
+      diagramType: this.extractJsonField(jsonString, 'diagramType') || 'flowchart'
+    };
+    
+    // 如果无法提取到 mermaidCode，抛出异常
+    if (!fields.mermaidCode) {
+      throw new Error('无法从JSON中提取mermaidCode字段');
+    }
+    
+    return JSON.stringify(fields);
+  }
+
+  /**
+   * 提取JSON字段值
+   */
+  private extractJsonField(jsonString: string, fieldName: string): string | null {
+    // 尝试多种匹配模式
+    const patterns = [
+      new RegExp(`"${fieldName}"\\s*:\\s*"([^"]*(?:\\\\.[^"]*)*)"`, 'i'),
+      new RegExp(`"${fieldName}"\\s*:\\s*'([^']*(?:\\\\.[^']*)*)'`, 'i'),
+      new RegExp(`${fieldName}\\s*:\\s*"([^"]*(?:\\\\.[^"]*)*)"`, 'i')
+    ];
+    
+    for (const pattern of patterns) {
+      const match = jsonString.match(pattern);
+      if (match) {
+        return match[1];
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * 提取JSON数组字段值
+   */
+  private extractJsonArrayField(jsonString: string, fieldName: string): string[] | null {
+    const pattern = new RegExp(`"${fieldName}"\\s*:\\s*\\[([^\\]]*?)\\]`, 'i');
+    const match = jsonString.match(pattern);
+    
+    if (match) {
+      try {
+        const arrayContent = match[1];
+        // 简单解析数组内容
+        const items = arrayContent.split(',').map(item => {
+          const trimmed = item.trim();
+          // 移除引号
+          return trimmed.replace(/^["']|["']$/g, '');
+        });
+        return items.filter(item => item.length > 0);
+      } catch (error) {
+        console.log('DiagramAgent: 数组字段解析失败');
+      }
+    }
+    
+    return null;
   }
 
   /**
    * 验证和清理响应数据
    */
   private validateAndCleanResponse(parsed: any): any {
-    // 验证响应格式
+    // 创建更宽松的验证模式，提供默认值
     const schema = z.object({
-      mermaidCode: z.string(),
-      explanation: z.string(),
-      suggestions: z.array(z.string()),
-      diagramType: z.string()
+      mermaidCode: z.string().default('graph TD\n    A[默认] --> B[图表]'),
+      explanation: z.string().default('已生成默认图表'),
+      suggestions: z.array(z.string()).default(['优化图表结构', '添加更多细节']),
+      diagramType: z.string().default('flowchart')
     });
 
-    return schema.parse(parsed);
+    try {
+      // 先进行基本验证和清理
+      const cleanedData = {
+        mermaidCode: typeof parsed.mermaidCode === 'string' ? parsed.mermaidCode : 'graph TD\n    A[解析错误] --> B[请重试]',
+        explanation: typeof parsed.explanation === 'string' ? parsed.explanation : '响应解析失败',
+        suggestions: Array.isArray(parsed.suggestions) ? 
+          parsed.suggestions.filter(s => typeof s === 'string') : 
+          ['检查输入', '重新生成'],
+        diagramType: typeof parsed.diagramType === 'string' ? parsed.diagramType : 'flowchart'
+      };
+
+      // 确保suggestions不为空
+      if (cleanedData.suggestions.length === 0) {
+        cleanedData.suggestions = ['优化图表结构', '添加更多细节'];
+      }
+
+      return schema.parse(cleanedData);
+    } catch (error) {
+      console.warn('DiagramAgent: 响应验证失败，使用默认值:', error);
+      
+      // 返回默认响应
+      return {
+        mermaidCode: 'graph TD\n    A[验证失败] --> B[使用默认]',
+        explanation: '响应验证失败，已生成默认图表',
+        suggestions: ['检查AI响应格式', '重新生成', '简化描述'],
+        diagramType: 'flowchart'
+      };
+    }
   }
 
   /**
@@ -1024,7 +1268,7 @@ ${request.existingCode}
   }
 
   /**
-   * 验证 Mermaid 代码是否包含保留关键字
+   * 验证 Mermaid 代码是否包含保留关键字和其他问题
    */
   private validateMermaidCode(code: string): { isValid: boolean; issues: string[] } {
     const issues: string[] = [];
@@ -1062,11 +1306,86 @@ ${request.existingCode}
           }
         });
       });
+      
+      // 检查中文标签中的问题字符
+      const labelMatches = trimmedLine.match(/\[([^\]]*)\]/g);
+      if (labelMatches) {
+        labelMatches.forEach(label => {
+          const content = label.slice(1, -1); // 移除方括号
+          
+          // 检查是否包含换行符
+          if (content.includes('\\n') || content.includes('\n')) {
+            issues.push(`第${index + 1}行标签包含换行符，可能导致解析错误: ${label}`);
+          }
+          
+          // 检查是否包含中文特殊符号
+          if (/[（）、，。！？；：""''【】《》]/.test(content)) {
+            issues.push(`第${index + 1}行标签包含中文特殊符号，建议使用英文符号: ${label}`);
+          }
+          
+          // 检查标签长度
+          if (content.length > 30) {
+            issues.push(`第${index + 1}行标签过长，建议简化: ${label}`);
+          }
+        });
+      }
+      
+      // 检查箭头格式
+      if (trimmedLine.includes('-->') || trimmedLine.includes('---') || trimmedLine.includes('==>')) {
+        // 检查箭头前后是否有空格
+        if (/\w-->/g.test(trimmedLine) || /-->\w/g.test(trimmedLine)) {
+          issues.push(`第${index + 1}行箭头格式不正确，缺少空格: ${trimmedLine}`);
+        }
+      }
     });
     
     return {
       isValid: issues.length === 0,
       issues
+    };
+  }
+
+  /**
+   * 测试 Mermaid 代码的有效性
+   */
+  public testMermaidCode(code: string): { isValid: boolean; errors: string[]; warnings: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    
+    // 基本验证
+    const validation = this.validateMermaidCode(code);
+    errors.push(...validation.issues);
+    
+    // 检查基本语法结构
+    const lines = code.split('\n').filter(line => line.trim());
+    
+    if (lines.length === 0) {
+      errors.push('代码为空');
+      return { isValid: false, errors, warnings };
+    }
+    
+    // 检查是否有图表类型声明
+    const hasGraphType = lines.some(line => 
+      /^(flowchart|graph|sequenceDiagram|classDiagram|erDiagram|gitgraph|gantt|pie|journey)/i.test(line.trim())
+    );
+    
+    if (!hasGraphType) {
+      warnings.push('缺少图表类型声明，建议添加 flowchart TD 或其他图表类型');
+    }
+    
+    // 检查是否有节点定义
+    const hasNodes = lines.some(line => 
+      /\w+\s*(\[|\(|\{)/.test(line) || /-->/g.test(line)
+    );
+    
+    if (!hasNodes) {
+      errors.push('未找到有效的节点定义或连接');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
     };
   }
 
@@ -1158,10 +1477,187 @@ ${request.existingCode}
   }
 
   /**
+   * 调试助手：验证生成的代码
+   */
+  public debugGeneratedCode(code: string): {
+    isValid: boolean;
+    errors: string[];
+    suggestions: string[];
+    fixedCode?: string;
+  } {
+    const errors: string[] = [];
+    const suggestions: string[] = [];
+    
+    // 检查基本结构
+    if (!code.trim()) {
+      errors.push('代码为空');
+      return { isValid: false, errors, suggestions };
+    }
+    
+    // 检查图表类型声明
+    const hasGraphDeclaration = /^(flowchart|graph|sequenceDiagram|classDiagram)/m.test(code);
+    if (!hasGraphDeclaration) {
+      errors.push('缺少图表类型声明');
+      suggestions.push('添加 flowchart TD 或其他图表类型');
+    }
+    
+    // 检查保留关键字
+    const reservedKeywords = ['end', 'start', 'class', 'state'];
+    const foundKeywords: string[] = [];
+    
+    code.split('\n').forEach((line, index) => {
+      reservedKeywords.forEach(keyword => {
+        if (new RegExp(`\\b${keyword}\\b(?=\\s*[\\[\\(]|\\s*-->)`, 'i').test(line)) {
+          foundKeywords.push(keyword);
+          errors.push(`第${index + 1}行使用了保留关键字: ${keyword}`);
+        }
+      });
+    });
+    
+    // 提供修复建议
+    if (foundKeywords.length > 0) {
+      suggestions.push('将保留关键字替换为: ' + foundKeywords.map(k => `${k} -> ${k}Node`).join(', '));
+    }
+    
+    // 尝试自动修复
+    let fixedCode = code;
+    if (errors.length > 0) {
+      fixedCode = this.preprocessMermaidCodeSafely(code);
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      suggestions,
+      fixedCode: fixedCode !== code ? fixedCode : undefined
+    };
+  }
+
+  /**
    * 睡眠函数
    */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+/**
+ * 静态工具方法
+ */
+export class DiagramAgentUtils {
+  /**
+   * 快速验证 Mermaid 代码
+   */
+  static validateMermaidCode(code: string): { isValid: boolean; issues: string[] } {
+    const agent = new DiagramAgent({
+      model: new ChatOpenAI({ openAIApiKey: 'dummy' }) // 仅用于验证，不会实际调用
+    });
+    
+    return (agent as any).validateMermaidCode(code);
+  }
+
+  /**
+   * 快速测试 Mermaid 代码
+   */
+  static testMermaidCode(code: string): { isValid: boolean; errors: string[]; warnings: string[] } {
+    const agent = new DiagramAgent({
+      model: new ChatOpenAI({ openAIApiKey: 'dummy' }) // 仅用于验证，不会实际调用
+    });
+    
+    return agent.testMermaidCode(code);
+  }
+
+  /**
+   * 预处理 Mermaid 代码
+   */
+  static preprocessMermaidCode(code: string): string {
+    const agent = new DiagramAgent({
+      model: new ChatOpenAI({ openAIApiKey: 'dummy' }) // 仅用于验证，不会实际调用
+    });
+    
+    return (agent as any).preprocessMermaidCode(code);
+  }
+
+  /**
+   * 修复中文标签
+   */
+  static fixChineseLabels(line: string): string {
+    const agent = new DiagramAgent({
+      model: new ChatOpenAI({ openAIApiKey: 'dummy' }) // 仅用于验证，不会实际调用
+    });
+    
+    return (agent as any).fixChineseLabels(line);
+  }
+
+  /**
+   * 检测图表类型
+   */
+  static detectDiagramType(code: string): string {
+    const agent = new DiagramAgent({
+      model: new ChatOpenAI({ openAIApiKey: 'dummy' }) // 仅用于验证，不会实际调用
+    });
+    
+    return (agent as any).detectDiagramType(code);
+  }
+
+  /**
+   * 批量修复 Mermaid 代码中的常见问题
+   */
+  static batchFixMermaidCode(codes: string[]): string[] {
+    return codes.map(code => this.preprocessMermaidCode(code));
+  }
+
+  /**
+   * 获取保留关键字列表
+   */
+  static getReservedKeywords(): string[] {
+    return [
+      'end', 'start', 'stop', 'class', 'state', 'note', 'loop', 'alt', 'opt', 
+      'par', 'critical', 'break', 'rect', 'activate', 'deactivate', 'if', 
+      'else', 'elseif', 'endif', 'and', 'or', 'not', 'true', 'false'
+    ];
+  }
+
+  /**
+   * 检查代码是否包含保留关键字
+   */
+  static hasReservedKeywords(code: string): { hasIssues: boolean; keywords: string[] } {
+    const reservedKeywords = this.getReservedKeywords();
+    const foundKeywords: string[] = [];
+    
+    const lines = code.split('\n');
+    lines.forEach(line => {
+      const trimmedLine = line.trim();
+      
+      // 跳过空行、注释和图表类型声明
+      if (!trimmedLine || 
+          trimmedLine.startsWith('%%') || 
+          trimmedLine.startsWith('flowchart') ||
+          trimmedLine.startsWith('graph') ||
+          trimmedLine.startsWith('sequenceDiagram') ||
+          trimmedLine.startsWith('classDiagram')) {
+        return;
+      }
+      
+      reservedKeywords.forEach(keyword => {
+        const patterns = [
+          new RegExp(`^\\s*${keyword}(?=\\[|\\(|\\s*-->|\\s*---|\s*==>)`, 'i'),
+          new RegExp(`(-->|---|==>)\\s+${keyword}(?=\\[|\\(|\\s*$)`, 'i'),
+          new RegExp(`^\\s*${keyword}\\s*$`, 'i')
+        ];
+        
+        patterns.forEach(pattern => {
+          if (pattern.test(trimmedLine) && !foundKeywords.includes(keyword)) {
+            foundKeywords.push(keyword);
+          }
+        });
+      });
+    });
+    
+    return {
+      hasIssues: foundKeywords.length > 0,
+      keywords: foundKeywords
+    };
   }
 }
 
