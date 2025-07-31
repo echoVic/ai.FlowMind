@@ -389,13 +389,21 @@ ${cleanedCode}`;
   useEffect(() => {
     if (isInitialized && currentDiagram.mermaidCode.trim()) {
       console.log('触发图表渲染，代码内容：', currentDiagram.mermaidCode.substring(0, 50) + '...');
+      console.log('渲染参数：', { 
+        theme: previewConfig.theme, 
+        look: previewConfig.look, 
+        scale: previewConfig.scale 
+      });
       
       // 清除之前的错误状态
       setError(null);
       
-      // 立即渲染，不等待容器尺寸
-      renderDiagram();
+      // 小延时确保主题/外观变化能正确应用
+      const timer = setTimeout(() => {
+        renderDiagram();
+      }, 10);
       
+      return () => clearTimeout(timer);
     } else {
       console.log('渲染条件不满足：', { 
         isInitialized, 
