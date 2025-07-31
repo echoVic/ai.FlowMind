@@ -202,6 +202,12 @@ npm run test:watch
 npm run dev
 ```
 
+### 维护
+
+- **清理未使用的文件和依赖**: 定期使用 `knip` 工具检查并移除项目中未使用的文件和依赖，以保持项目结构的整洁和优化。
+- **依赖版本更新**: 及时更新项目依赖到最新稳定版本，解决潜在的兼容性问题和安全漏洞。
+  - `@vitest/coverage-v8` 添加为 ^3.2.4
+
 ## Troubleshooting
 
 **MCP Server Not Found:**

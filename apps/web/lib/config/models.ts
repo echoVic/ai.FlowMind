@@ -4,7 +4,7 @@
  */
 import type { AIModelConfig } from '@/types/types';
 
-export const AI_MODELS: AIModelConfig[] = [
+const AI_MODELS: AIModelConfig[] = [
   {
     name: ' Doubao-Seed-1.6-flash', 
     displayName: '豆包 Seed 1.6 Flash',
@@ -116,7 +116,7 @@ export const getDefaultModel = (): AIModelConfig | undefined => {
 /**
  * 根据模型ID获取模型配置
  */
-export const getModelById = (modelId: string): AIModelConfig | undefined => {
+const getModelById = (modelId: string): AIModelConfig | undefined => {
   return AI_MODELS.find(m => m.model === modelId);
 };
 

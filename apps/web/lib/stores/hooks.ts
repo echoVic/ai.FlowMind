@@ -18,33 +18,33 @@ export const useIsSaving = () => useAppStore(state => state.isSaving);
 export const useIsLoadingModels = () => useAppStore(state => state.isLoadingModels);
 
 // === UI 状态选择器 ===
-export const useModelSelectorOpen = () => useAppStore(state => state.modelSelectorOpen);
+const useModelSelectorOpen = () => useAppStore(state => state.modelSelectorOpen);
 export const useSidebarOpen = () => useAppStore(state => state.sidebarOpen);
-export const useShowAddCustomModel = () => useAppStore(state => state.showAddCustomModel);
-export const useUseDirectCall = () => useAppStore(state => state.useDirectCall);
-export const useIsInputPanelOpen = () => useAppStore(state => state.isInputPanelOpen);
-export const useIsAIAssistantOpen = () => useAppStore(state => state.isAIAssistantOpen);
+const useShowAddCustomModel = () => useAppStore(state => state.showAddCustomModel);
+const useUseDirectCall = () => useAppStore(state => state.useDirectCall);
+const useIsInputPanelOpen = () => useAppStore(state => state.isInputPanelOpen);
+const useIsAIAssistantOpen = () => useAppStore(state => state.isAIAssistantOpen);
 
 // === 数据状态选择器 ===
 export const useAiResponse = () => useAppStore(state => state.aiResponse);
-export const useCustomModels = () => useAppStore(state => state.customModels);
+const useCustomModels = () => useAppStore(state => state.customModels);
 export const useDirectCallConfig = () => useAppStore(state => state.directCallConfig);
 export const useDiagramHistory = () => useAppStore(state => state.diagramHistory);
-export const useErrorMessage = () => useAppStore(state => state.errorMessage);
-export const useSuccessMessage = () => useAppStore(state => state.successMessage);
+const useErrorMessage = () => useAppStore(state => state.errorMessage);
+const useSuccessMessage = () => useAppStore(state => state.successMessage);
 
 // === 配置选择器 ===
 export const useEditorConfig = () => useAppStore(state => state.editorConfig);
 export const usePreviewConfig = () => useAppStore(state => state.previewConfig);
 
 // === 复合选择器 ===
-export const useMessages = () => {
+const useMessages = () => {
   const errorMessage = useAppStore(state => state.errorMessage);
   const successMessage = useAppStore(state => state.successMessage);
   return { errorMessage, successMessage };
 };
 
-export const useLoadingStates = () => {
+const useLoadingStates = () => {
   const isGenerating = useAppStore(state => state.isGenerating);
   const isOptimizing = useAppStore(state => state.isOptimizing);
   const isSaving = useAppStore(state => state.isSaving);
@@ -52,7 +52,7 @@ export const useLoadingStates = () => {
   return { isGenerating, isOptimizing, isSaving, isLoadingModels };
 };
 
-export const useUIStates = () => {
+const useUIStates = () => {
   const modelSelectorOpen = useAppStore(state => state.modelSelectorOpen);
   const sidebarOpen = useAppStore(state => state.sidebarOpen);
   const showAddCustomModel = useAppStore(state => state.showAddCustomModel);
@@ -63,7 +63,7 @@ export const useUIStates = () => {
 // === Action Hooks ===
 
 // 基础 Actions
-export const useDiagramActions = () => {
+const useDiagramActions = () => {
   const setCurrentDiagram = useAppStore(state => state.setCurrentDiagram);
   const setNaturalLanguageInput = useAppStore(state => state.setNaturalLanguageInput);
   
@@ -79,7 +79,7 @@ export const useDiagramActions = () => {
   };
 };
 
-export const useModelActions = () => {
+const useModelActions = () => {
   const setSelectedModel = useAppStore(state => state.setSelectedModel);
   const setAvailableModels = useAppStore(state => state.setAvailableModels);
   
@@ -90,7 +90,7 @@ export const useModelActions = () => {
 };
 
 // 加载状态 Actions
-export const useLoadingActions = () => {
+const useLoadingActions = () => {
   const setIsGenerating = useAppStore(state => state.setIsGenerating);
   const setIsOptimizing = useAppStore(state => state.setIsOptimizing);
   const setIsSaving = useAppStore(state => state.setIsSaving);
@@ -148,7 +148,7 @@ export const useUIActions = () => {
 };
 
 // 消息 Actions
-export const useMessageActions = () => {
+const useMessageActions = () => {
   const setErrorMessage = useAppStore(state => state.setErrorMessage);
   const setSuccessMessage = useAppStore(state => state.setSuccessMessage);
   const clearMessages = useAppStore(state => state.clearMessages);
@@ -175,7 +175,7 @@ export const useMessageActions = () => {
 };
 
 // 自定义模型 Actions
-export const useCustomModelActions = () => {
+const useCustomModelActions = () => {
   const loadCustomModels = useAppStore(state => state.loadCustomModels);
   const saveCustomModel = useAppStore(state => state.saveCustomModel);
   const removeCustomModel = useAppStore(state => state.removeCustomModel);
@@ -197,7 +197,7 @@ export const useCustomModelActions = () => {
 };
 
 // DirectCall 配置 Actions
-export const useDirectCallActions = () => {
+const useDirectCallActions = () => {
   const setDirectCallConfig = useAppStore(state => state.setDirectCallConfig);
   const updateDirectCallConfig = useAppStore(state => state.updateDirectCallConfig);
   
@@ -208,7 +208,7 @@ export const useDirectCallActions = () => {
 };
 
 // AI 响应 Actions
-export const useAiActions = () => {
+const useAiActions = () => {
   const setAiResponse = useAppStore(state => state.setAiResponse);
   
   const clearAiResponse = () => setAiResponse(null);
@@ -220,7 +220,7 @@ export const useAiActions = () => {
 };
 
 // 历史记录 Actions
-export const useHistoryActions = () => {
+const useHistoryActions = () => {
   const setDiagramHistory = useAppStore(state => state.setDiagramHistory);
   
   const addToHistory = (diagram: DiagramData) => {
@@ -238,7 +238,7 @@ export const useHistoryActions = () => {
 // === 组合 Hooks ===
 
 // 模型选择相关的所有状态和操作
-export const useModelSelection = () => {
+const useModelSelection = () => {
   const selectedModel = useSelectedModel();
   const availableModels = useAvailableModels();
   const { setSelectedModel } = useModelActions();

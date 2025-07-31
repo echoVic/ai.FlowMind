@@ -9,7 +9,7 @@ import { useSidebarOpen } from '@/lib/stores/hooks';
 import { motion } from 'framer-motion';
 import { Bot } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import ConversationalDiagramPanel from '../chat/ConversationalDiagramPanel';
+import ConversationalDiagramPanel from '../chat';
 import FloatWindow from '../ui/FloatWindow';
 import CodeEditor from './CodeEditor';
 import DiagramPreview from './DiagramPreview';

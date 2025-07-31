@@ -36,7 +36,7 @@ export interface DiagramGenerationResult {
 }
 
 // Agent 配置接口
-export interface DiagramAgentConfig {
+interface DiagramAgentConfig {
   model: BaseChatModel;
   temperature?: number;
   maxTokens?: number;
@@ -45,7 +45,7 @@ export interface DiagramAgentConfig {
 }
 
 // Qwen Provider 适配器
-export class QwenLangChainProvider extends BaseChatModel {
+class QwenLangChainProvider extends BaseChatModel {
   private apiKey: string;
   private endpoint: string;
   private modelName: string;
@@ -216,7 +216,7 @@ export class QwenLangChainProvider extends BaseChatModel {
 }
 
 // Volcengine Provider 适配器
-export class VolcengineLangChainProvider extends BaseChatModel {
+class VolcengineLangChainProvider extends BaseChatModel {
   private apiKey: string;
   private endpoint: string;
   private modelName: string;

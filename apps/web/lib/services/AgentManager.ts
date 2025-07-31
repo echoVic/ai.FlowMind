@@ -5,7 +5,7 @@
 import type { AIModelConfig } from '@/types/types';
 import { DiagramAgent, DiagramAgentFactory, type DiagramGenerationRequest, type DiagramGenerationResult } from '../agents/DiagramAgent';
 
-export interface AgentConfig {
+interface AgentConfig {
   apiKey: string;
   provider: 'volcengine' | 'openai' | 'anthropic' | 'qwen';
   modelName?: string;
@@ -15,7 +15,7 @@ export interface AgentConfig {
   endpoint?: string;
 }
 
-export class AgentManager {
+class AgentManager {
   private agents: Map<string, DiagramAgent> = new Map();
   private defaultAgent: DiagramAgent | null = null;
 

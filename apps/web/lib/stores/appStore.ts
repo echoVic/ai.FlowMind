@@ -148,7 +148,22 @@ export const useAppStore = create<AppStore>()(
 
     aiResponse: null,
     customModels: [],
-    directCallConfig: {},
+    directCallConfig: {
+      // 从环境变量初始化 API 配置
+      volcengine: {
+        apiKey: process.env.NEXT_PUBLIC_ARK_API_KEY || '',
+        endpoint: process.env.NEXT_PUBLIC_ARK_ENDPOINT || 'https://ark.cn-beijing.volces.com/api/v3'
+      },
+      openai: {
+        apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY || ''
+      },
+      anthropic: {
+        apiKey: process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || ''
+      },
+      qwen: {
+        apiKey: process.env.NEXT_PUBLIC_QWEN_API_KEY || ''
+      }
+    },
     diagramHistory: [],
     errorMessage: null,
     successMessage: null,
@@ -314,4 +329,3 @@ export const useAppStore = create<AppStore>()(
   }))
 );
 
-export default useAppStore;

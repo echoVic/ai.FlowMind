@@ -30,7 +30,7 @@ export interface AIResponse {
   };
 }
 
-export interface GenerateRequest {
+interface GenerateRequest {
   description: string;
   diagramType?: DiagramData['diagramType'];
   existingCode?: string;
@@ -38,7 +38,7 @@ export interface GenerateRequest {
   useDirectCall?: boolean;
 }
 
-export interface OptimizeRequest {
+interface OptimizeRequest {
   mermaidCode: string;
   requirements: string;
   modelName?: string;
@@ -70,7 +70,7 @@ export interface DirectCallConfig {
   timeout?: number;
 }
 
-export interface AIServiceResponse {
+interface AIServiceResponse {
   content: string;
   model: string;
   provider: string;
@@ -82,7 +82,7 @@ export interface AIServiceResponse {
   directCall?: boolean;
 }
 
-export interface ProviderConfig {
+interface ProviderConfig {
   name: string;
   displayName: string;
   icon: string;
