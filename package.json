@@ -2,6 +2,7 @@
   "name": "FlowMind",
   "version": "1.0.0",
   "devDependencies": {
+    "knip": "^5.62.0",
     "turbo": "^2.5.4"
   },
   "scripts": {

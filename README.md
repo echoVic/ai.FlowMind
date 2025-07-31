@@ -4,11 +4,12 @@
   <h3>🤖 基于 AI 的智能流程图生成工具</h3>
   <p>通过自然语言描述，快速创建专业的 Mermaid 图表</p>
   
-  [![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+  [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org/)
   [![React](https://img.shields.io/badge/React-18-blue?style=flat-square&logo=react)](https://reactjs.org/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
   [![LangChain](https://img.shields.io/badge/LangChain.js-0.3-green?style=flat-square)](https://js.langchain.com/)
   [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
+  [![Zustand](https://img.shields.io/badge/Zustand-5.0-orange?style=flat-square)](https://zustand-demo.pmnd.rs/)
 </div>
 
 ## ✨ 主要特性
@@ -33,8 +34,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/echoVic/ai.FlowMind.git
-cd FlowMind
+git clone https://github.com/echoVic/flow-ai.git
+cd flow-ai
 
 # 安装依赖
 pnpm install
@@ -47,7 +48,7 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-应用将在 http://localhost:3000 启动。
+应用将在 <http://localhost:3000> 启动。
 
 ### 环境变量配置
 
@@ -82,6 +83,15 @@ NEXT_PUBLIC_DEFAULT_MAX_TOKENS=2048
 4. **实时预览** - 右侧面板实时显示图表效果
 5. **保存分享** - 保存到本地历史记录或导出图片
 
+### 📚 详细文档
+
+更多详细信息请查看我们的 [文档中心](./docs/README.md)：
+
+- [架构设计文档](./docs/architecture/) - 了解系统架构和设计原则
+- [部署指南](./docs/deployment/) - 详细的部署配置说明
+- [开发指南](./docs/guides/) - 开发环境配置和使用指南
+- [开发记录](./docs/development/) - 重构记录和问题修复
+
 ### 支持的图表类型
 
 - **流程图 (Flowchart)** - 业务流程、系统架构
@@ -110,14 +120,15 @@ NEXT_PUBLIC_DEFAULT_MAX_TOKENS=2048
 
 ### 核心技术栈
 
-- **前端框架**: Next.js 14 (App Router)
+- **前端框架**: Next.js 15 (App Router)
 - **UI框架**: React 18 + TypeScript
 - **样式系统**: Tailwind CSS
-- **状态管理**: Jotai
+- **状态管理**: Zustand
 - **AI集成**: LangChain.js
 - **代码编辑**: Monaco Editor
 - **图表渲染**: Mermaid.js
 - **动画效果**: Framer Motion
+- **工具库**: ahooks (React Hooks)
 
 ### 架构设计
 
@@ -185,14 +196,14 @@ pnpm build
 
 ## 📝 更新日志
 
-### v1.0.0 (2025-01-09)
+查看完整的 [更新日志](./docs/CHANGELOG.md) 了解所有版本变更。
 
-- 🎉 首次发布
-- ✨ 基于 LangChain.js 的多AI提供商支持
-- 🎨 现代化三面板交互设计
-- 📊 支持8种主流图表类型
-- ⚡ 纯前端架构，无服务器依赖
-- 🌈 响应式设计和暗色模式支持
+### 最新版本亮点
+
+- ✨ 完善多轮对话历史架构，实现真正的上下文记忆
+- 🎨 集成 Ant Design X 聊天组件，提供专业对话体验
+- 🔧 优化 Agent 内部历史管理，简化架构设计
+- 📚 统一文档管理，创建完整的文档中心
 
 ## 📄 许可证
 

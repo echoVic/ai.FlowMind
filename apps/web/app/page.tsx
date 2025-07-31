@@ -1,7 +1,6 @@
 'use client';
 
-import DiagramGenerator from '@/components/DiagramGenerator';
-import React from 'react';
+import DiagramGenerator from '@/components/diagram/DiagramGenerator';
 import { Toaster } from 'react-hot-toast';
 
 export default function Home() {
@@ -32,4 +31,4 @@ export default function Home() {
       />
     </div>
   );
-} 
+}

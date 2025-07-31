@@ -19,7 +19,7 @@ export interface ValidationResult {
 /**
  * 支持的图表类型
  */
-export const DiagramTypeSchema = z.enum([
+const DiagramTypeSchema = z.enum([
   'flowchart',
   'sequence', 
   'class',

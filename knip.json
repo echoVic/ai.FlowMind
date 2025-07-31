@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "apps/web/app/**/*.{ts,tsx}",
+    "apps/web/components/**/*.{ts,tsx}",
+    "apps/web/lib/**/*.{ts,tsx}",
+    "apps/web/types/**/*.{ts,tsx}",
+    "apps/web/next.config.js",
+    "packages/mcp-server/src/**/*.{ts,tsx}"
+  ],
+  "project": [
+    "apps/web/**/*.{ts,tsx}",
+    "packages/mcp-server/**/*.{ts,tsx}"
+  ],
+  "ignore": [
+    "apps/web/.next/**",
+    "apps/web/node_modules/**",
+    "packages/mcp-server/node_modules/**"
+  ],
+  "ignoreDependencies": [
+    "turbo"
+  ]
+}
