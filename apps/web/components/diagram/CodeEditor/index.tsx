@@ -8,20 +8,21 @@ import CodeMirror from '@uiw/react-codemirror';
 import { mermaid } from 'codemirror-lang-mermaid';
 import { motion } from 'framer-motion';
 import { Code, Copy, Download } from 'lucide-react';
-import React, { useCallback } from 'react';
+import React from 'react';
 import toast from 'react-hot-toast';
 
 import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
 import { useCurrentDiagram, useEditorConfig } from '@/lib/stores/hooks';
+import { useMemoizedFn } from 'ahooks';
 
 const CodeEditor: React.FC = () => {
   const currentDiagram = useCurrentDiagram();
   const editorConfig = useEditorConfig();
   const { updateMermaidCode } = useDiagramGenerator();
 
-  const handleCodeChange = useCallback((value: string) => {
+  const handleCodeChange = useMemoizedFn((value: string) => {
     updateMermaidCode(value);
-  }, [updateMermaidCode]);
+  });
 
   const handleCopyCode = async () => {
     try {
