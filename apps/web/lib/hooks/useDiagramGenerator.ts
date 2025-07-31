@@ -103,8 +103,11 @@ export const useDiagramGenerator = () => {
       
       // 如果有可用模型配置，使用传统方式
       if (availableModels.length > 0) {
-        const modelInfo = availableModels.find(m => m.name === selectedModel);
+        // 优先按 model 字段匹配，其次按 name 字段匹配
+        const modelInfo = availableModels.find(m => m.model === selectedModel) || 
+                         availableModels.find(m => m.name === selectedModel);
         if (!modelInfo) {
+          console.warn(`未找到选择的模型配置: ${selectedModel}，可用模型:`, availableModels.map(m => ({ name: m.name, model: m.model })));
           throw new Error(`未找到选择的模型配置: ${selectedModel}`);
         }
 
@@ -116,66 +119,66 @@ export const useDiagramGenerator = () => {
         agentKey = ensureAgentRegistered(modelInfo, providerConfig);
       } else {
         // 如果没有可用模型但有选择的模型，尝试从环境变量获取对应的 Agent
-      if (selectedModel) {
-        // 根据选择的模型来判断应该使用哪个默认 Agent
-        const providerType = getProviderFromModel(selectedModel);
-        const defaultAgentKey = `${providerType}-default`;
-        
-        // 检查是否有对应的默认 Agent
-        const availableAgents = agentManager.getAvailableAgents();
-        if (availableAgents.includes(defaultAgentKey)) {
-          // 如果选择的模型和默认 Agent 的模型不同，需要创建新的 Agent
-          const currentDefaultAgent = agentManager.getAgent(defaultAgentKey);
-          if (currentDefaultAgent && (currentDefaultAgent as any).modelName !== selectedModel) {
-            // 创建专门针对选择模型的 Agent
-            const specificAgentKey = `${providerType}-${selectedModel}`;
-            if (!availableAgents.includes(specificAgentKey)) {
-              // 获取对应提供商的API密钥
-              let apiKey = '';
-              switch (providerType) {
-                case 'volcengine':
-                  apiKey = process.env.NEXT_PUBLIC_ARK_API_KEY || '';
-                  break;
-                case 'openai':
-                  apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || '';
-                  break;
-                case 'anthropic':
-                  apiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || '';
-                  break;
-                case 'qwen':
-                  apiKey = process.env.NEXT_PUBLIC_QWEN_API_KEY || '';
-                  break;
+        if (selectedModel) {
+          // 根据选择的模型来判断应该使用哪个默认 Agent
+          const providerType = getProviderFromModel(selectedModel);
+          const defaultAgentKey = `${providerType}-default`;
+          
+          // 检查是否有对应的默认 Agent
+          const availableAgents = agentManager.getAvailableAgents();
+          if (availableAgents.includes(defaultAgentKey)) {
+            // 如果选择的模型和默认 Agent 的模型不同，需要创建新的 Agent
+            const currentDefaultAgent = agentManager.getAgent(defaultAgentKey);
+            if (currentDefaultAgent && (currentDefaultAgent as any).modelName !== selectedModel) {
+              // 创建专门针对选择模型的 Agent
+              const specificAgentKey = `${providerType}-${selectedModel}`;
+              if (!availableAgents.includes(specificAgentKey)) {
+                // 获取对应提供商的API密钥
+                let apiKey = '';
+                switch (providerType) {
+                  case 'volcengine':
+                    apiKey = process.env.NEXT_PUBLIC_ARK_API_KEY || '';
+                    break;
+                  case 'openai':
+                    apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || '';
+                    break;
+                  case 'anthropic':
+                    apiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || '';
+                    break;
+                  case 'qwen':
+                    apiKey = process.env.NEXT_PUBLIC_QWEN_API_KEY || '';
+                    break;
+                }
+                
+                // 如果没有API密钥，抛出明确的错误
+                if (!apiKey) {
+                  throw new Error(`请先配置 ${providerType} 的 API 密钥`);
+                }
+                
+                agentManager.registerAgent(specificAgentKey, {
+                  apiKey,
+                  provider: providerType as 'volcengine' | 'openai' | 'anthropic' | 'qwen',
+                  modelName: selectedModel,
+                  temperature: 0.7,
+                  maxTokens: 2048,
+                  enableMemory: false
+                });
               }
-              
-              // 如果没有API密钥，抛出明确的错误
-              if (!apiKey) {
-                throw new Error(`请先配置 ${providerType} 的 API 密钥`);
-              }
-              
-              agentManager.registerAgent(specificAgentKey, {
-                apiKey,
-                provider: providerType as 'volcengine' | 'openai' | 'anthropic' | 'qwen',
-                modelName: selectedModel,
-                temperature: 0.7,
-                maxTokens: 2048,
-                enableMemory: false
-              });
+              agentKey = specificAgentKey;
+              console.log(`使用专门的 Agent: ${specificAgentKey} (模型: ${selectedModel})`);
+            } else {
+              agentKey = defaultAgentKey;
+              console.log(`使用默认 Agent: ${defaultAgentKey}`);
             }
-            agentKey = specificAgentKey;
-            console.log(`使用专门的 Agent: ${specificAgentKey} (模型: ${selectedModel})`);
           } else {
-            agentKey = defaultAgentKey;
-            console.log(`使用默认 Agent: ${defaultAgentKey}`);
+            console.log('未找到对应的默认 Agent，使用全局默认 Agent');
+            agentKey = undefined;
           }
         } else {
-          console.log('未找到对应的默认 Agent，使用全局默认 Agent');
+          // 使用全局默认 Agent
+          console.log('使用全局默认 Agent');
           agentKey = undefined;
         }
-      } else {
-        // 使用全局默认 Agent
-        console.log('使用全局默认 Agent');
-        agentKey = undefined;
-      }
       }
 
       // 构建生成请求
@@ -257,9 +260,12 @@ export const useDiagramGenerator = () => {
       
       // 如果有可用模型配置，使用传统方式
       if (availableModels.length > 0) {
-        const modelInfo = availableModels.find(m => m.name === selectedModel);
+        // 优先按 model 字段匹配，其次按 name 字段匹配
+        const modelInfo = availableModels.find(m => m.model === selectedModel) || 
+                         availableModels.find(m => m.name === selectedModel);
         if (!modelInfo) {
-          throw new Error('未找到选择的模型配置');
+          console.warn(`未找到选择的模型配置: ${selectedModel}，可用模型:`, availableModels.map(m => ({ name: m.name, model: m.model })));
+          throw new Error(`未找到选择的模型配置: ${selectedModel}`);
         }
 
         const providerConfig = directCallConfig[modelInfo.provider];
@@ -352,8 +358,11 @@ export const useDiagramGenerator = () => {
     try {
       console.log('=== Agent 连接验证开始 ===');
       
-      const modelInfo = availableModels.find(m => m.name === selectedModel);
+      // 优先按 model 字段匹配，其次按 name 字段匹配
+      const modelInfo = availableModels.find(m => m.model === selectedModel) || 
+                       availableModels.find(m => m.name === selectedModel);
       if (!modelInfo) {
+        console.warn(`未找到选择的模型配置: ${selectedModel}，可用模型:`, availableModels.map(m => ({ name: m.name, model: m.model })));
         throw new Error('未找到选择的模型配置');
       }
 
@@ -402,9 +411,13 @@ export const useDiagramGenerator = () => {
   const diagnoseConnection = async () => {
     console.log('=== Agent 连接诊断开始 ===');
     
-    const modelInfo = availableModels.find(m => m.name === selectedModel);
+    // 优先按 model 字段匹配，其次按 name 字段匹配
+    const modelInfo = availableModels.find(m => m.model === selectedModel) || 
+                     availableModels.find(m => m.name === selectedModel);
     if (!modelInfo) {
-      console.log('诊断结果: 未选择模型');
+      console.log('诊断结果: 未找到选择的模型配置');
+      console.log('当前选择的模型:', selectedModel);
+      console.log('可用模型:', availableModels.map(m => ({ name: m.name, model: m.model })));
       return;
     }
 

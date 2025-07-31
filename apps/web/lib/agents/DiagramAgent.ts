@@ -529,9 +529,15 @@ export class DiagramAgent {
 生成规则：
 1. 严格按照Mermaid语法规范生成代码
 2. 根据描述选择最合适的图表类型
-3. 节点命名要清晰、有意义
+3. 节点命名要清晰、有意义，避免使用保留关键字
 4. 连接关系要符合逻辑
 5. 代码结构要清晰易读
+
+重要注意事项：
+- 避免使用Mermaid保留关键字作为节点ID，如：end, start, stop, class, state, note, loop, alt, opt, par, critical, break, rect, activate, deactivate等
+- 节点ID应该使用字母开头，可包含字母、数字、下划线，如：startNode, endNode, processStep1等
+- 中文标签应该放在方括号或圆括号内，如：startNode[开始], endNode([结束])
+- 确保所有节点ID在整个图表中唯一
 
 支持的图表类型：
 - flowchart: 流程图 (推荐用于业务流程、系统架构)
