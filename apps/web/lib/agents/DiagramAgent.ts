@@ -526,18 +526,44 @@ export class DiagramAgent {
   private getSystemPrompt(): string {
     return `你是一个专业的架构图生成专家。请根据用户的描述生成高质量的Mermaid代码。
 
-生成规则：
+🔥 关键规则 - 必须严格遵守：
 1. 严格按照Mermaid语法规范生成代码
 2. 根据描述选择最合适的图表类型
-3. 节点命名要清晰、有意义，避免使用保留关键字
+3. 节点命名要清晰、有意义，绝对不能使用保留关键字
 4. 连接关系要符合逻辑
 5. 代码结构要清晰易读
 
-重要注意事项：
-- 避免使用Mermaid保留关键字作为节点ID，如：end, start, stop, class, state, note, loop, alt, opt, par, critical, break, rect, activate, deactivate等
-- 节点ID应该使用字母开头，可包含字母、数字、下划线，如：startNode, endNode, processStep1等
-- 中文标签应该放在方括号或圆括号内，如：startNode[开始], endNode([结束])
+🚫 绝对禁止使用的保留关键字作为节点ID：
+end, start, stop, class, state, note, loop, alt, opt, par, critical, break, rect, activate, deactivate, if, else, elseif, endif
+
+✅ 正确的节点ID命名规范：
+- 使用描述性名称：startNode, endNode, processStep, checkPoint, resultNode
+- 字母开头，可包含字母、数字、下划线
+- 避免单个词汇，使用组合词：loginProcess, dataValidation, userRegistration
+- 中文标签放在方括号内：startNode[开始], endNode([结束])
+
+✅ 正确的语法格式：
+- 箭头前后要有空格：nodeA --> nodeB
+- 每行代码结尾不要有多余空格
 - 确保所有节点ID在整个图表中唯一
+
+📝 标准模板示例：
+\`\`\`
+flowchart TD
+    startNode([开始]) --> inputData[输入数据]
+    inputData --> processData[处理数据]
+    processData --> checkResult{检查结果}
+    checkResult -->|成功| outputResult[输出结果]
+    checkResult -->|失败| errorHandle[错误处理]
+    outputResult --> endNode([结束])
+    errorHandle --> endNode
+\`\`\`
+
+⚠️ 特别注意：
+- 绝对不要使用 "end" 作为节点ID，必须使用 "endNode" 或 "finishNode"
+- 绝对不要使用 "start" 作为节点ID，必须使用 "startNode" 或 "beginNode"
+- 绝对不要使用 "class" 作为节点ID，必须使用 "classNode" 或 "classInfo"
+- 绝对不要使用 "state" 作为节点ID，必须使用 "stateNode" 或 "statusNode"
 
 支持的图表类型：
 - flowchart: 流程图 (推荐用于业务流程、系统架构)
@@ -556,12 +582,7 @@ export class DiagramAgent {
 - packet: 数据包图 (推荐用于网络协议分析)
 
 请严格按照以下JSON格式返回：
-{
-  "mermaidCode": "这里是生成的mermaid代码",
-  "explanation": "简要说明代码的功能和结构",
-  "suggestions": ["优化建议1", "优化建议2"],
-  "diagramType": "图表类型"
-}`;
+{\n  "mermaidCode": "这里是生成的mermaid代码",\n  "explanation": "简要说明代码的功能和结构",\n  "suggestions": ["优化建议1", "优化建议2"],\n  "diagramType": "图表类型"\n}`;
   }
 
   /**
@@ -685,6 +706,132 @@ ${request.existingCode}
   }
 
   /**
+   * 预处理和修复 Mermaid 代码中的常见问题
+   */
+  private preprocessMermaidCode(code: string): string {
+    console.log('DiagramAgent: 开始预处理 Mermaid 代码');
+    
+    // 定义保留关键字映射 - 扩展版本
+    const reservedKeywords = {
+      'end': 'endNode',
+      'start': 'startNode', 
+      'stop': 'stopNode',
+      'class': 'classNode',
+      'state': 'stateNode',
+      'note': 'noteNode',
+      'loop': 'loopNode',
+      'alt': 'altNode',
+      'opt': 'optNode',
+      'par': 'parNode',
+      'critical': 'criticalNode',
+      'break': 'breakNode',
+      'rect': 'rectNode',
+      'activate': 'activateNode',
+      'deactivate': 'deactivateNode',
+      'if': 'ifNode',
+      'else': 'elseNode',
+      'elseif': 'elseifNode',
+      'endif': 'endifNode',
+      // 添加更多可能的保留关键字
+      'and': 'andNode',
+      'or': 'orNode',
+      'not': 'notNode',
+      'true': 'trueNode',
+      'false': 'falseNode'
+    };
+    
+    let processedCode = code.trim();
+    let hasChanges = false;
+    
+    // 按行处理代码
+    const lines = processedCode.split('\n');
+    const processedLines = lines.map((line, index) => {
+      let processedLine = line.trim();
+      
+      // 跳过空行、注释和图表类型声明行
+      if (!processedLine || 
+          processedLine.startsWith('%%') || 
+          processedLine.startsWith('flowchart') ||
+          processedLine.startsWith('graph') ||
+          processedLine.startsWith('sequenceDiagram') ||
+          processedLine.startsWith('classDiagram')) {
+        return processedLine;
+      }
+      
+      // 修复保留关键字问题 - 使用更精确的匹配
+      for (const [reserved, replacement] of Object.entries(reservedKeywords)) {
+        // 创建多个匹配模式
+        const patterns = [
+          // 1. 匹配行开头的保留关键字后跟标签或箭头
+          new RegExp(`^\\s*${reserved}(?=\\[|\\(|\\s*-->|\\s*---|\s*==>)`, 'i'),
+          // 2. 匹配箭头后的保留关键字
+          new RegExp(`(-->|---|==>)\\s+${reserved}(?=\\[|\\(|\\s*$)`, 'i'),
+          // 3. 匹配单独一行的保留关键字
+          new RegExp(`^\\s*${reserved}\\s*$`, 'i'),
+          // 4. 匹配保留关键字后跟标签的情况
+          new RegExp(`\\b${reserved}(?=\\[|\\()`, 'i')
+        ];
+        
+        let lineChanged = false;
+        patterns.forEach(pattern => {
+          if (pattern.test(processedLine)) {
+            console.log(`DiagramAgent: 第${index + 1}行发现保留关键字 "${reserved}"，替换为 "${replacement}"`);
+            processedLine = processedLine.replace(pattern, (match) => {
+              return match.replace(new RegExp(`\\b${reserved}\\b`, 'i'), replacement);
+            });
+            lineChanged = true;
+            hasChanges = true;
+          }
+        });
+        
+        // 如果这一行已经被修改，跳过其他关键字检查以避免重复替换
+        if (lineChanged) break;
+      }
+      
+      // 修复箭头格式 - 确保前后有空格
+      const originalLine = processedLine;
+      processedLine = processedLine
+        // 处理 --> 箭头
+        .replace(/(\w+|\]|\))-->/g, '$1 -->')
+        .replace(/-->(\w+|\[)/g, '--> $1')
+        // 处理 --- 箭头
+        .replace(/(\w+|\]|\))---/g, '$1 ---')
+        .replace(/---(\w+|\[)/g, '--- $1')
+        // 处理 ==> 箭头
+        .replace(/(\w+|\]|\))==>/g, '$1 ==>')
+        .replace(/==>(\w+|\[)/g, '==> $1')
+        // 处理条件箭头 -->|label|
+        .replace(/-->\|([^|]+)\|(\w+)/g, '--> |$1| $2')
+        .replace(/(\w+)\|([^|]+)\|-->/g, '$1 |$2| -->');
+      
+      if (originalLine !== processedLine) {
+        hasChanges = true;
+      }
+      
+      return processedLine;
+    });
+    
+    processedCode = processedLines.join('\n');
+    
+    // 最终清理
+    const finalCode = processedCode
+      // 移除多余的空行（超过2个连续空行）
+      .replace(/\n\s*\n\s*\n+/g, '\n\n')
+      // 确保代码结尾有且仅有一个换行符
+      .replace(/\n*$/, '\n')
+      // 移除行尾空格
+      .replace(/[ \t]+$/gm, '');
+    
+    if (hasChanges || finalCode !== code.trim() + '\n') {
+      console.log('DiagramAgent: 代码已预处理，修复了保留关键字和语法问题');
+      console.log('DiagramAgent: 修复前:', code.substring(0, 150) + '...');
+      console.log('DiagramAgent: 修复后:', finalCode.substring(0, 150) + '...');
+    }
+    
+    return finalCode;
+  }
+
+  /**
    * 解析响应
    */
   private parseResponse(response: string, request: DiagramGenerationRequest): DiagramGenerationResult {
@@ -724,8 +871,11 @@ ${request.existingCode}
       // 如果JSON解析失败，尝试解析为纯Mermaid代码
       const mermaidMatch = response.match(/```mermaid\n([\s\S]*?)\n```/);
       if (mermaidMatch) {
-        const mermaidCode = mermaidMatch[1];
+        let mermaidCode = mermaidMatch[1];
         console.log('DiagramAgent: 找到Mermaid代码块:', mermaidCode.substring(0, 100) + '...');
+        
+        // 应用预处理，修复保留关键字和语法问题
+        mermaidCode = this.preprocessMermaidCode(mermaidCode);
         
         // 自动检测图表类型
         const detectedType = this.detectDiagramType(mermaidCode);
@@ -745,10 +895,13 @@ ${request.existingCode}
       // 如果都没有找到，检查是否是纯Mermaid代码
       if (response.includes('graph') || response.includes('flowchart') || response.includes('sequenceDiagram')) {
         console.log('DiagramAgent: 检测到纯Mermaid代码');
-        const detectedType = this.detectDiagramType(response);
+        
+        // 应用预处理，修复保留关键字和语法问题
+        let processedCode = this.preprocessMermaidCode(response.trim());
+        const detectedType = this.detectDiagramType(processedCode);
         
         return {
-          mermaidCode: response.trim(),
+          mermaidCode: processedCode,
           explanation: '已生成Mermaid图表代码',
           suggestions: ['可以进一步优化图表结构', '添加更多详细信息', '调整图表样式'],
           diagramType: detectedType || request.diagramType || 'flowchart',
@@ -871,6 +1024,53 @@ ${request.existingCode}
   }
 
   /**
+   * 验证 Mermaid 代码是否包含保留关键字
+   */
+  private validateMermaidCode(code: string): { isValid: boolean; issues: string[] } {
+    const issues: string[] = [];
+    const reservedKeywords = [
+      'end', 'start', 'stop', 'class', 'state', 'note', 'loop', 'alt', 'opt', 
+      'par', 'critical', 'break', 'rect', 'activate', 'deactivate', 'if', 
+      'else', 'elseif', 'endif', 'and', 'or', 'not', 'true', 'false'
+    ];
+    
+    const lines = code.split('\n');
+    lines.forEach((line, index) => {
+      const trimmedLine = line.trim();
+      
+      // 跳过空行、注释和图表类型声明
+      if (!trimmedLine || 
+          trimmedLine.startsWith('%%') || 
+          trimmedLine.startsWith('flowchart') ||
+          trimmedLine.startsWith('graph') ||
+          trimmedLine.startsWith('sequenceDiagram') ||
+          trimmedLine.startsWith('classDiagram')) {
+        return;
+      }
+      
+      // 检查是否包含保留关键字作为节点ID
+      reservedKeywords.forEach(keyword => {
+        const patterns = [
+          new RegExp(`^\\s*${keyword}(?=\\[|\\(|\\s*-->|\\s*---|\s*==>)`, 'i'),
+          new RegExp(`(-->|---|==>)\\s+${keyword}(?=\\[|\\(|\\s*$)`, 'i'),
+          new RegExp(`^\\s*${keyword}\\s*$`, 'i')
+        ];
+        
+        patterns.forEach(pattern => {
+          if (pattern.test(trimmedLine)) {
+            issues.push(`第${index + 1}行包含保留关键字 "${keyword}": ${trimmedLine}`);
+          }
+        });
+      });
+    });
+    
+    return {
+      isValid: issues.length === 0,
+      issues
+    };
+  }
+
+  /**
    * 构建最终结果
    */
   private buildResult(validated: any, request: DiagramGenerationRequest): DiagramGenerationResult {
@@ -884,8 +1084,19 @@ ${request.existingCode}
       .replace(/\n?```\s*$/i, '')        // 移除结尾的 ```
       .trim();                           // 移除前后空白
 
+    // 应用预处理，修复保留关键字和语法问题
+    cleanedMermaidCode = this.preprocessMermaidCode(cleanedMermaidCode);
+
+    // 验证最终代码
+    const validation = this.validateMermaidCode(cleanedMermaidCode);
+    if (!validation.isValid) {
+      console.warn('DiagramAgent: 代码验证发现问题:', validation.issues);
+      // 如果仍有问题，再次尝试预处理
+      cleanedMermaidCode = this.preprocessMermaidCode(cleanedMermaidCode);
+    }
+
     console.log('DiagramAgent: 原始代码:', validated.mermaidCode);
-    console.log('DiagramAgent: 清理后代码:', cleanedMermaidCode);
+    console.log('DiagramAgent: 最终处理后代码:', cleanedMermaidCode);
 
     return {
       mermaidCode: cleanedMermaidCode,

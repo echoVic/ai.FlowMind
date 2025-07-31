@@ -2,6 +2,7 @@
  * 基于 Ant Design X 的聊天界面组件
  * 参考官方 demo 重构，简化架构和状态管理
  */
+import AddCustomModelModal from '@/components/modals/AddCustomModelModal';
 import { useInputPanel } from '@/lib/stores/hooks';
 import {
   CheckCircleOutlined,
@@ -54,6 +55,9 @@ const AntdChatInterface: React.FC = () => {
     setCurrentDiagram,
     availableModels,
     setSelectedModel,
+    showAddCustomModel,
+    setShowAddCustomModel,
+    loadCustomModels,
   } = useInputPanel();
 
   // 简化状态管理（参考官方 demo）
@@ -61,6 +65,11 @@ const AntdChatInterface: React.FC = () => {
   const [thoughtSteps, setThoughtSteps] = useState<ThoughtStep[]>([]);
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
   const [thoughtChainExpanded, setThoughtChainExpanded] = useState<string[]>([]);
+
+  // 加载自定义模型
+  useEffect(() => {
+    loadCustomModels();
+  }, [loadCustomModels]);
 
 
   // 图表类型选项
@@ -624,18 +633,30 @@ const AntdChatInterface: React.FC = () => {
         </div>
 
         <Space>
-          <Select
-            value={selectedModel}
-            onChange={setSelectedModel}
-            size="small"
-            style={{ width: 160 }}
-            placeholder="选择AI模型"
-            disabled={agent.isRequesting()}
-            options={availableModels.map(model => ({
-              value: model.model,
-              label: `${getProviderIcon(model.provider)} ${model.displayName}`,
-            }))}
-          />
+          <div className="flex items-center space-x-2">
+            <Select
+              value={selectedModel}
+              onChange={setSelectedModel}
+              size="small"
+              style={{ width: 160 }}
+              placeholder="选择AI模型"
+              disabled={agent.isRequesting()}
+              options={availableModels.map(model => ({
+                value: model.model,
+                label: `${getProviderIcon(model.provider)} ${model.displayName}`,
+              }))}
+            />
+            <Tooltip title="添加自定义模型">
+              <Button
+                type="text"
+                icon={<PlusOutlined />}
+                size="small"
+                onClick={() => setShowAddCustomModel(true)}
+                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              />
+            </Tooltip>
+          </div>
+          
           <Select
             value={currentDiagram.diagramType}
             onChange={(value) => {
@@ -748,6 +769,9 @@ const AntdChatInterface: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* 添加自定义模型弹窗 */}
+      <AddCustomModelModal />
     </div>
   );
 };
