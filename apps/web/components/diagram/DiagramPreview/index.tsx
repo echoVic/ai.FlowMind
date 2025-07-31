@@ -249,18 +249,14 @@ end, start, stop, class, state, note, loop, alt, opt, par, critical, break, rect
 
     const container = containerRef.current;
     
-    // 检查容器尺寸是否有效，如果没有则等待一下再重试
+    // 检查容器尺寸是否有效
     if (container.clientWidth === 0 || container.clientHeight === 0) {
-      console.log('容器尺寸还未准备好，等待重试...', {
+      console.log('容器尺寸还未准备好，使用默认尺寸进行渲染...', {
         width: container.clientWidth,
         height: container.clientHeight
       });
       
-      // 延迟重试
-      setTimeout(() => {
-        renderDiagram();
-      }, 100);
-      return;
+      // 不阻止渲染，让mermaid使用默认尺寸，ResizeObserver会在容器有尺寸后重新渲染
     }
 
     const currentRenderId = ++renderIdRef.current;
@@ -341,8 +337,8 @@ ${cleanedCode}`;
         const originalHeight = svgElement.getAttribute('height') || '600';
         
         // 让SVG充满整个可用空间
-        const containerWidth = container.clientWidth;
-        const containerHeight = container.clientHeight;
+        const containerWidth = Math.max(container.clientWidth, 400); // 最小宽度400px
+        const containerHeight = Math.max(container.clientHeight, 300); // 最小高度300px
         
         // 设置SVG样式让它充满容器
         svgElement.style.cssText = `
@@ -397,12 +393,9 @@ ${cleanedCode}`;
       // 清除之前的错误状态
       setError(null);
       
-      // 增加延时，确保容器布局完成
-      const timer = setTimeout(() => {
-        renderDiagram();
-      }, 50);
+      // 立即渲染，不等待容器尺寸
+      renderDiagram();
       
-      return () => clearTimeout(timer);
     } else {
       console.log('渲染条件不满足：', { 
         isInitialized, 
