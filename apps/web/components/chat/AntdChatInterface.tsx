@@ -6,15 +6,15 @@ import AddCustomModelModal from '@/components/modals/AddCustomModelModal';
 import { useInputPanel } from '@/lib/stores/hooks';
 import { getCurrentSessionId } from '@/lib/utils/sessionUtils';
 import {
-    CheckCircleOutlined,
-    ClearOutlined,
-    ClockCircleOutlined,
-    ExclamationCircleOutlined,
-    LoadingOutlined,
-    PlusOutlined,
-    RobotOutlined,
-    SettingOutlined,
-    UserOutlined
+  CheckCircleOutlined,
+  ClearOutlined,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined,
+  LoadingOutlined,
+  PlusOutlined,
+  RobotOutlined,
+  SettingOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 import { Bubble, Prompts, Sender, ThoughtChain, ThoughtChainItem, useXAgent, useXChat, Welcome } from '@ant-design/x';
 import { useMemoizedFn } from 'ahooks';
@@ -295,10 +295,10 @@ const AntdChatInterface: React.FC = () => {
               
               updateThoughtStep(
                 '完成生成', 
-                '图表已成功生成并准备应用', 
+                '图表已成功生成并自动显示在预览面板', 
                 'success',
                 <div className="text-xs text-gray-600 bg-green-50 p-2 rounded mt-1">
-                  ✅ 图表代码已生成，元数据已解析，可以应用到编辑器
+                  ✅ 图表代码已生成，预览面板已自动打开，可查看实时渲染效果
                 </div>
               );
             } catch (e) {

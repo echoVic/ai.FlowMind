@@ -1,12 +1,12 @@
 'use client';
 
-import DiagramGenerator from '@/components/diagram/DiagramGenerator';
+import AIWorkspace from '@/components/ai-native/AIWorkspace';
 import { Toaster } from 'react-hot-toast';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DiagramGenerator />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+      <AIWorkspace />
       <Toaster
         position="top-right"
         toastOptions={{

@@ -190,7 +190,7 @@ export const useAppStore = create<AppStore>()(
       
       // 如果当前没有选择模型，或者选择的模型不在新的模型列表中，自动选择第一个模型
       const currentSelectedModel = get().selectedModel;
-      if (!currentSelectedModel || !models.find(m => m.name === currentSelectedModel)) {
+      if (!currentSelectedModel || !models.find(m => m.model === currentSelectedModel)) {
         const firstModel = models[0];
         if (firstModel) {
           set({ selectedModel: firstModel.model });

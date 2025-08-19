@@ -110,7 +110,14 @@ const AI_MODELS: AIModelConfig[] = [
  * 获取默认模型
  */
 export const getDefaultModel = (): AIModelConfig | undefined => {
-  return AI_MODELS.find(m => m.model === 'ep-20250715105951-5rbzv') || AI_MODELS[0];
+  // 优先返回指定的默认模型（如果启用）
+  const preferredDefault = AI_MODELS.find(m => m.model === 'ep-20250715105951-5rbzv' && m.enabled);
+  if (preferredDefault) {
+    return preferredDefault;
+  }
+  
+  // 否则返回第一个启用的模型
+  return AI_MODELS.find(m => m.enabled);
 };
 
 /**

@@ -37,6 +37,7 @@ const DiagramPreview: React.FC = () => {
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const themeDropdownRef = useRef<HTMLDivElement>(null);
   const lookDropdownRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(false);
 
   const { optimizeDiagram } = useDiagramGenerator();
 
@@ -217,6 +218,18 @@ end, start, stop, class, state, note, loop, alt, opt, par, critical, break, rect
         if (mounted) {
           setIsInitialized(true);
           console.log('Mermaid初始化成功');
+          
+          // 初始化完成后，如果有默认图表代码，立即尝试渲染
+          if (currentDiagram.mermaidCode.trim()) {
+            console.log('DiagramPreview: 检测到默认图表，准备渲染');
+            // 延迟一点时间确保状态更新完成
+            setTimeout(() => {
+              if (containerRef.current && mounted) {
+                console.log('DiagramPreview: 开始渲染默认图表');
+                renderDiagram();
+              }
+            }, 150);
+          }
         }
       } catch (err) {
         console.error('Mermaid初始化失败:', err);
@@ -244,19 +257,35 @@ end, start, stop, class, state, note, loop, alt, opt, par, critical, break, rect
   // 渲染图表的核心函数
   const renderDiagram = useMemoizedFn(async () => {
     if (!isInitialized || !containerRef.current || !currentDiagram.mermaidCode.trim()) {
+      console.log('DiagramPreview: 渲染条件不满足', {
+        isInitialized,
+        hasContainer: !!containerRef.current,
+        hasCode: !!currentDiagram.mermaidCode.trim()
+      });
       return;
     }
 
     const container = containerRef.current;
     
+    // 检查容器是否在DOM中且可见
+    if (!container.isConnected) {
+      console.log('DiagramPreview: 容器未连接到DOM，延迟渲染');
+      setTimeout(() => renderDiagram(), 100);
+      return;
+    }
+    
     // 检查容器尺寸是否有效
     if (container.clientWidth === 0 || container.clientHeight === 0) {
-      console.log('容器尺寸还未准备好，使用默认尺寸进行渲染...', {
+      console.log('DiagramPreview: 容器尺寸还未准备好，延迟渲染...', {
         width: container.clientWidth,
-        height: container.clientHeight
+        height: container.clientHeight,
+        offsetWidth: container.offsetWidth,
+        offsetHeight: container.offsetHeight
       });
       
-      // 不阻止渲染，让mermaid使用默认尺寸，ResizeObserver会在容器有尺寸后重新渲染
+      // 延迟重试，给容器更多时间准备
+      setTimeout(() => renderDiagram(), 200);
+      return;
     }
 
     const currentRenderId = ++renderIdRef.current;
@@ -398,10 +427,10 @@ ${cleanedCode}`;
       // 清除之前的错误状态
       setError(null);
       
-      // 小延时确保主题/外观变化能正确应用
+      // 增加延迟时间确保容器完全准备好
       const timer = setTimeout(() => {
         renderDiagram();
-      }, 10);
+      }, 50);
       
       return () => clearTimeout(timer);
     } else {
@@ -418,6 +447,61 @@ ${cleanedCode}`;
     }
   }, [isInitialized, currentDiagram.mermaidCode, previewConfig.scale, previewConfig.theme, previewConfig.look, renderDiagram]);
 
+  // 确保默认图表在初始化后能够显示
+  useEffect(() => {
+    if (isInitialized && currentDiagram.mermaidCode.trim() && !error && containerRef.current) {
+      // 额外的渲染触发，确保默认图表能够显示
+      const timer = setTimeout(() => {
+        renderDiagram();
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isInitialized, containerRef.current]);
+
+  // 强制渲染机制 - 处理初始化时偶现不渲染的问题
+  useEffect(() => {
+    if (isInitialized && currentDiagram.mermaidCode.trim() && containerRef.current) {
+      // 检查容器是否为空，如果为空则强制渲染
+      const checkAndRender = () => {
+        const container = containerRef.current;
+        if (container && container.children.length === 0 && !isLoading && !error) {
+          console.log('DiagramPreview: 检测到空容器，强制渲染默认图表');
+          renderDiagram();
+        }
+      };
+      
+      // 延迟检查，给其他渲染逻辑足够时间
+      const timer = setTimeout(checkAndRender, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isInitialized, currentDiagram.mermaidCode, isLoading, error]);
+
+  // 组件挂载状态管理
+  useEffect(() => {
+    mountedRef.current = true;
+    
+    // 组件挂载后的额外检查
+    const mountCheck = () => {
+      if (mountedRef.current && isInitialized && currentDiagram.mermaidCode.trim() && containerRef.current) {
+        const container = containerRef.current;
+        if (container.children.length === 0 && !isLoading && !error) {
+          console.log('DiagramPreview: 组件挂载后检查，容器为空，触发渲染');
+          renderDiagram();
+        }
+      }
+    };
+    
+    // 延迟执行挂载检查
+    const timer = setTimeout(mountCheck, 300);
+    
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(timer);
+    };
+  }, []);
+ 
   // 监听容器尺寸变化，确保在布局变化时重新渲染
   useEffect(() => {
     if (!containerRef.current || !isInitialized) return;
