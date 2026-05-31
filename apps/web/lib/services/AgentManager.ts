@@ -5,7 +5,7 @@
 import type { AIModelConfig } from '@/types/types';
 import { DiagramAgent, DiagramAgentFactory, type DiagramGenerationRequest, type DiagramGenerationResult } from '../agents/DiagramAgent';
 
-interface AgentConfig {
+export interface AgentConfig {
   apiKey: string;
   provider: 'volcengine' | 'openai' | 'anthropic' | 'qwen';
   modelName?: string;
@@ -15,15 +15,24 @@ interface AgentConfig {
   endpoint?: string;
 }
 
-class AgentManager {
-  private agents: Map<string, DiagramAgent> = new Map();
-  private sessionAgents: Map<string, Map<string, DiagramAgent>> = new Map(); // sessionId -> modelKey -> agent
-  private defaultAgent: DiagramAgent | null = null;
+export type ManagedDiagramAgent = Pick<
+  DiagramAgent,
+  'generateDiagram' | 'optimizeDiagram' | 'clearHistory' | 'getConversationHistory' | 'supportsStreaming'
+> & {
+  setConversationHistory?: (history: Array<{role: string, content: string}>) => void;
+};
+
+export class AgentManager {
+  private agents: Map<string, ManagedDiagramAgent> = new Map();
+  private sessionAgents: Map<string, Map<string, ManagedDiagramAgent>> = new Map(); // sessionId -> modelKey -> agent
+  private defaultAgent: ManagedDiagramAgent | null = null;
+  private readonly agentFactory?: (config: AgentConfig) => ManagedDiagramAgent;
 
   /**
    * 初始化 Agent Manager
    */
-  constructor() {
+  constructor(agentFactory?: (config: AgentConfig) => ManagedDiagramAgent) {
+    this.agentFactory = agentFactory;
     this.initializeDefaultAgent();
   }
 
@@ -72,11 +81,20 @@ class AgentManager {
    * 注册新的 Agent
    */
   registerAgent(key: string, config: AgentConfig): void {
-    let agent: DiagramAgent;
+    const agent = this.createAgent(config);
+
+    this.agents.set(key, agent);
+    console.log(`Agent registered: ${key} (${config.provider}, engine=${this.agentFactory ? 'blade' : 'legacy'})`);
+  }
+
+  private createAgent(config: AgentConfig): ManagedDiagramAgent {
+    if (this.agentFactory) {
+      return this.agentFactory(config);
+    }
 
     switch (config.provider) {
       case 'volcengine':
-        agent = DiagramAgentFactory.createVolcengineAgent({
+        return DiagramAgentFactory.createVolcengineAgent({
           apiKey: config.apiKey,
           modelName: config.modelName,
           temperature: config.temperature,
@@ -86,7 +104,7 @@ class AgentManager {
         break;
 
       case 'openai':
-        agent = DiagramAgentFactory.createOpenAIAgent({
+        return DiagramAgentFactory.createOpenAIAgent({
           apiKey: config.apiKey,
           modelName: config.modelName,
           temperature: config.temperature,
@@ -96,7 +114,7 @@ class AgentManager {
         break;
 
       case 'anthropic':
-        agent = DiagramAgentFactory.createClaudeAgent({
+        return DiagramAgentFactory.createClaudeAgent({
           apiKey: config.apiKey,
           modelName: config.modelName,
           temperature: config.temperature,
@@ -106,7 +124,7 @@ class AgentManager {
         break;
 
       case 'qwen':
-        agent = DiagramAgentFactory.createQwenAgent({
+        return DiagramAgentFactory.createQwenAgent({
           apiKey: config.apiKey,
           endpoint: config.endpoint,
           modelName: config.modelName,
@@ -119,15 +137,12 @@ class AgentManager {
       default:
         throw new Error(`Unsupported provider: ${config.provider}`);
     }
-
-    this.agents.set(key, agent);
-    console.log(`Agent registered: ${key} (${config.provider})`);
   }
 
   /**
    * 获取 Agent（支持会话隔离）
    */
-  getAgent(key?: string, sessionId?: string): DiagramAgent | null {
+  getAgent(key?: string, sessionId?: string): ManagedDiagramAgent | null {
     // 如果提供了sessionId，优先从会话级Agent中获取
     if (sessionId) {
       const sessionAgents = this.sessionAgents.get(sessionId);
@@ -152,7 +167,7 @@ class AgentManager {
   /**
    * 创建会话级Agent
    */
-  private createSessionAgent(agentKey: string, sessionId: string): DiagramAgent | null {
+  private createSessionAgent(agentKey: string, sessionId: string): ManagedDiagramAgent | null {
     // 获取全局Agent配置作为模板
     const templateAgent = this.agents.get(agentKey) || this.defaultAgent;
     if (!templateAgent) {
@@ -161,15 +176,16 @@ class AgentManager {
     }
 
     // 创建新的Agent实例（复制配置但独立历史）
-    let newAgent: DiagramAgent;
+    let newAgent: ManagedDiagramAgent;
     
     // 根据默认Agent的类型创建相应的新实例
     if (agentKey.includes('volcengine') || !agentKey.includes('-')) {
       const arkApiKey = process.env.NEXT_PUBLIC_ARK_API_KEY;
       if (!arkApiKey) return null;
       
-      newAgent = DiagramAgentFactory.createVolcengineAgent({
+      newAgent = this.createAgent({
         apiKey: arkApiKey,
+        provider: 'volcengine',
         modelName: agentKey.includes('-') ? agentKey : process.env.NEXT_PUBLIC_ARK_MODEL_NAME || 'ep-20250617131345-rshkp',
         temperature: parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7'),
         maxTokens: parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || '2048'),
@@ -179,8 +195,9 @@ class AgentManager {
       const qwenApiKey = process.env.NEXT_PUBLIC_QWEN_API_KEY;
       if (!qwenApiKey) return null;
       
-      newAgent = DiagramAgentFactory.createQwenAgent({
+      newAgent = this.createAgent({
         apiKey: qwenApiKey,
+        provider: 'qwen',
         endpoint: process.env.NEXT_PUBLIC_QWEN_ENDPOINT || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
         modelName: agentKey,
         temperature: parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7'),
@@ -191,8 +208,9 @@ class AgentManager {
       const openaiApiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
       if (!openaiApiKey) return null;
       
-      newAgent = DiagramAgentFactory.createOpenAIAgent({
+      newAgent = this.createAgent({
         apiKey: openaiApiKey,
+        provider: 'openai',
         modelName: agentKey,
         temperature: parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7'),
         maxTokens: parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || '2048'),
@@ -202,8 +220,9 @@ class AgentManager {
       const anthropicApiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
       if (!anthropicApiKey) return null;
       
-      newAgent = DiagramAgentFactory.createClaudeAgent({
+      newAgent = this.createAgent({
         apiKey: anthropicApiKey,
+        provider: 'anthropic',
         modelName: agentKey,
         temperature: parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7'),
         maxTokens: parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || '2048'),
@@ -214,8 +233,9 @@ class AgentManager {
       const arkApiKey = process.env.NEXT_PUBLIC_ARK_API_KEY;
       if (!arkApiKey) return null;
       
-      newAgent = DiagramAgentFactory.createVolcengineAgent({
+      newAgent = this.createAgent({
         apiKey: arkApiKey,
+        provider: 'volcengine',
         modelName: agentKey,
         temperature: parseFloat(process.env.NEXT_PUBLIC_DEFAULT_TEMPERATURE || '0.7'),
         maxTokens: parseInt(process.env.NEXT_PUBLIC_DEFAULT_MAX_TOKENS || '2048'),
@@ -464,6 +484,7 @@ class AgentManager {
       };
     }
   }
+
 }
 
 // 全局 Agent Manager 实例

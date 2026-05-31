@@ -1,5 +1,8 @@
 import { NextRequest } from 'next/server';
-import { agentManager } from '../../../../lib/services/AgentManager';
+import { serverAgentManager as agentManager } from '../../../../lib/services/ServerAgentManager';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
