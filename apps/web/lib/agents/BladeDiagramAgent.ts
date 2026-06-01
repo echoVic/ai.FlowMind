@@ -26,8 +26,10 @@ interface BladeSessionConfig {
   model: string;
 }
 
-type BladeSession = import('@blade-ai/agent-sdk').ISession;
-type BladeTokenUsage = import('@blade-ai/agent-sdk').TokenUsage;
+type BladeSession = import('@blade-ai/agent-sdk/session').ISession;
+type BladeTokenUsage = import('@blade-ai/agent-sdk/session').TokenUsage;
+type BladeSessionOptions = import('@blade-ai/agent-sdk/session').SessionOptions;
+type BladeOutputFormat = import('@blade-ai/agent-sdk/core').OutputFormat;
 
 export function buildBladeProviderConfig(config: BladeDiagramAgentConfig): BladeSessionConfig {
   switch (config.provider) {
@@ -184,21 +186,20 @@ export class BladeDiagramAgent {
       return this.session;
     }
 
-    const { createSession } = await import('@blade-ai/agent-sdk');
-    this.session = await createSession({
+    const { createSession } = await import('@blade-ai/agent-sdk/session');
+    const sessionOptions: BladeSessionOptions = {
       provider: this.bladeConfig.provider,
       model: this.bladeConfig.model,
       systemPrompt: buildSystemPrompt(),
       maxTurns: 1,
       persistSession: false,
       allowedTools: [],
-      canUseTool: async () => ({
-        behavior: 'deny',
-        message: 'FlowMind diagram generation does not use tools.',
-      }),
       temperature: this.config.temperature,
-      outputFormat: undefined,
-    } as Parameters<typeof createSession>[0]);
+      maxOutputTokens: this.config.maxTokens,
+      outputFormat: buildDiagramOutputFormat(),
+    };
+
+    this.session = await createSession(sessionOptions);
 
     return this.session;
   }
@@ -234,6 +235,57 @@ function buildSystemPrompt(): string {
 }
 
 支持类型：flowchart, sequence, class, state, er, journey, gantt, pie, quadrant, mindmap, gitgraph, kanban, architecture, packet`;
+}
+
+function buildDiagramOutputFormat(): BladeOutputFormat {
+  return {
+    type: 'json_schema',
+    json_schema: {
+      name: 'diagram_generation_result',
+      description: 'FlowMind Mermaid diagram generation result',
+      strict: true,
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['mermaidCode', 'explanation', 'suggestions', 'diagramType'],
+        properties: {
+          mermaidCode: {
+            type: 'string',
+            description: 'Complete Mermaid diagram source code without Markdown fences',
+          },
+          explanation: {
+            type: 'string',
+            description: 'Brief explanation of the generated diagram',
+          },
+          suggestions: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+          },
+          diagramType: {
+            type: 'string',
+            enum: [
+              'flowchart',
+              'sequence',
+              'class',
+              'state',
+              'er',
+              'journey',
+              'gantt',
+              'pie',
+              'quadrant',
+              'mindmap',
+              'gitgraph',
+              'kanban',
+              'architecture',
+              'packet',
+            ],
+          },
+        },
+      },
+    },
+  };
 }
 
 function buildGenerationPrompt(request: DiagramGenerationRequest): string {

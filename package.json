@@ -11,5 +11,10 @@
     "lint": "turbo lint",
     "start": "turbo start"
   },
+  "pnpm": {
+    "overrides": {
+      "caniuse-lite": "1.0.30001793"
+    }
+  },
   "packageManager": "pnpm@10.12.4"
 }

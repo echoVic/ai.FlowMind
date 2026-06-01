@@ -219,17 +219,6 @@ end, start, stop, class, state, note, loop, alt, opt, par, critical, break, rect
           setIsInitialized(true);
           console.log('Mermaid初始化成功');
           
-          // 初始化完成后，如果有默认图表代码，立即尝试渲染
-          if (currentDiagram.mermaidCode.trim()) {
-            console.log('DiagramPreview: 检测到默认图表，准备渲染');
-            // 延迟一点时间确保状态更新完成
-            setTimeout(() => {
-              if (containerRef.current && mounted) {
-                console.log('DiagramPreview: 开始渲染默认图表');
-                renderDiagram();
-              }
-            }, 150);
-          }
         }
       } catch (err) {
         console.error('Mermaid初始化失败:', err);
@@ -252,7 +241,7 @@ end, start, stop, class, state, note, loop, alt, opt, par, critical, break, rect
       mounted = false;
       clearTimeout(timer);
     };
-  }, [parseError]); // 移除主题依赖，只在第一次初始化
+  }, [parseError]); // 只初始化 Mermaid；渲染由下方 effect 在初始化完成后触发
 
   // 渲染图表的核心函数
   const renderDiagram = useMemoizedFn(async () => {
@@ -457,7 +446,7 @@ ${cleanedCode}`;
       
       return () => clearTimeout(timer);
     }
-  }, [isInitialized, containerRef.current]);
+  }, [isInitialized, currentDiagram.mermaidCode, error, renderDiagram]);
 
   // 强制渲染机制 - 处理初始化时偶现不渲染的问题
   useEffect(() => {
@@ -476,13 +465,18 @@ ${cleanedCode}`;
       
       return () => clearTimeout(timer);
     }
-  }, [isInitialized, currentDiagram.mermaidCode, isLoading, error]);
+  }, [isInitialized, currentDiagram.mermaidCode, isLoading, error, renderDiagram]);
 
   // 组件挂载状态管理
   useEffect(() => {
     mountedRef.current = true;
-    
-    // 组件挂载后的额外检查
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // 组件挂载后的额外检查
+  useEffect(() => {
     const mountCheck = () => {
       if (mountedRef.current && isInitialized && currentDiagram.mermaidCode.trim() && containerRef.current) {
         const container = containerRef.current;
@@ -497,10 +491,9 @@ ${cleanedCode}`;
     const timer = setTimeout(mountCheck, 300);
     
     return () => {
-      mountedRef.current = false;
       clearTimeout(timer);
     };
-  }, []);
+  }, [isInitialized, currentDiagram.mermaidCode, isLoading, error, renderDiagram]);
  
   // 监听容器尺寸变化，确保在布局变化时重新渲染
   useEffect(() => {
