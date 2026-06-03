@@ -13,7 +13,10 @@
   },
   "pnpm": {
     "overrides": {
-      "caniuse-lite": "1.0.30001793"
+      "caniuse-lite": "1.0.30001793",
+      "@codemirror/state": "^6.6.0",
+      "@codemirror/view": "^6.38.1",
+      "@codemirror/language": "^6.0.0"
     }
   },
   "packageManager": "pnpm@10.12.4"

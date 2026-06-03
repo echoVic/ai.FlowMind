@@ -6,6 +6,9 @@ settings:
 
 overrides:
   caniuse-lite: 1.0.30001793
+  '@codemirror/state': ^6.6.0
+  '@codemirror/view': ^6.38.1
+  '@codemirror/language': ^6.0.0
 
 importers:
 
@@ -340,9 +343,6 @@ packages:
 
   '@codemirror/search@6.5.11':
     resolution: {integrity: sha512-KmWepDE6jUdL6n8cAAqIpRmLPBZ5ZKnicE8oGU/s3QrAVID+0VhLFrzUucVKHG5035/BSykhExDL/Xm7dHthiA==}
-
-  '@codemirror/state@6.5.2':
-    resolution: {integrity: sha512-FVqsPqtPWKVVL3dPSxy8wEF/ymIEuVzF1PK3VbUgrxXpJUSHQWWZz4JMToquRxnkw+36LTamCZG2iua2Ptq0fA==}
 
   '@codemirror/state@6.6.0':
     resolution: {integrity: sha512-4nbvra5R5EtiCzr9BTHiTLc+MLXK2QGiAVYMyi8PkQd3SR+6ixar/Q/01Fa21TBIDOZXgeWV4WppsQolSreAPQ==}
@@ -1357,11 +1357,11 @@ packages:
     peerDependencies:
       '@codemirror/autocomplete': '>=6.0.0'
       '@codemirror/commands': '>=6.0.0'
-      '@codemirror/language': '>=6.0.0'
+      '@codemirror/language': ^6.0.0
       '@codemirror/lint': '>=6.0.0'
       '@codemirror/search': '>=6.0.0'
-      '@codemirror/state': '>=6.0.0'
-      '@codemirror/view': '>=6.0.0'
+      '@codemirror/state': ^6.6.0
+      '@codemirror/view': ^6.38.1
 
   '@uiw/codemirror-theme-vscode@4.23.14':
     resolution: {integrity: sha512-4edbdHWusd+QSUM7+JS6/gavObRDqSMYzqK+YS0HyMQ47WU0Ya+L3O2KQH2vcxl1IX2Qmn3aVzGZu9Cf4mXpSw==}
@@ -1369,17 +1369,17 @@ packages:
   '@uiw/codemirror-themes@4.23.14':
     resolution: {integrity: sha512-VoctEjY2fDOzTb0gSNRB8VcTbt11azUKLJzxXC/s4YNgz59C9i4X5vM99NgQAnEQ9vWaUBDgkmfkt1JiHBD++A==}
     peerDependencies:
-      '@codemirror/language': '>=6.0.0'
-      '@codemirror/state': '>=6.0.0'
-      '@codemirror/view': '>=6.0.0'
+      '@codemirror/language': ^6.0.0
+      '@codemirror/state': ^6.6.0
+      '@codemirror/view': ^6.38.1
 
   '@uiw/react-codemirror@4.23.14':
     resolution: {integrity: sha512-/CmlSh8LGUEZCxg/f78MEkEMehKnVklqJvJlL10AXXrO/2xOyPqHb8SK10GhwOqd0kHhHgVYp4+6oK5S+UIEuQ==}
     peerDependencies:
       '@babel/runtime': '>=7.11.0'
-      '@codemirror/state': '>=6.0.0'
+      '@codemirror/state': ^6.6.0
       '@codemirror/theme-one-dark': '>=6.0.0'
-      '@codemirror/view': '>=6.0.0'
+      '@codemirror/view': ^6.38.1
       codemirror: '>=6.0.0'
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
@@ -4964,13 +4964,13 @@ snapshots:
   '@codemirror/commands@6.8.1':
     dependencies:
       '@codemirror/language': 6.11.2
-      '@codemirror/state': 6.5.2
+      '@codemirror/state': 6.6.0
       '@codemirror/view': 6.38.1
       '@lezer/common': 1.2.3
 
   '@codemirror/language@6.11.2':
     dependencies:
-      '@codemirror/state': 6.5.2
+      '@codemirror/state': 6.6.0
       '@codemirror/view': 6.38.1
       '@lezer/common': 1.2.3
       '@lezer/highlight': 1.2.1
@@ -4989,10 +4989,6 @@ snapshots:
       '@codemirror/view': 6.43.0
       crelt: 1.0.6
 
-  '@codemirror/state@6.5.2':
-    dependencies:
-      '@marijn/find-cluster-break': 1.0.2
-
   '@codemirror/state@6.6.0':
     dependencies:
       '@marijn/find-cluster-break': 1.0.2
@@ -5006,7 +5002,7 @@ snapshots:
 
   '@codemirror/view@6.38.1':
     dependencies:
-      '@codemirror/state': 6.5.2
+      '@codemirror/state': 6.6.0
       crelt: 1.0.6
       style-mod: 4.1.2
       w3c-keyname: 2.2.8
