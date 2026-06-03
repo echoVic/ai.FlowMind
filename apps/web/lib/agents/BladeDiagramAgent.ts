@@ -1,7 +1,7 @@
 import type {
   DiagramGenerationRequest,
   DiagramGenerationResult,
-} from './DiagramAgent';
+} from './types';
 
 type BladeProviderType = 'openai' | 'anthropic' | 'openai-compatible';
 

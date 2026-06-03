@@ -3,7 +3,7 @@
  * 使用 Zustand 状态管理，保持原有功能
  */
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { X, Plus, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAddCustomModelModal } from '@/lib/stores/hooks';
 import type { AIModelConfig } from '@/types/types';

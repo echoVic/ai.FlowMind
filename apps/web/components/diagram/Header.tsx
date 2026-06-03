@@ -5,7 +5,7 @@
 import { useDiagramGenerator } from '@/lib/hooks/useDiagramGenerator';
 import { useDiagramHistory } from '@/lib/hooks/useDiagramHistory';
 import { useCurrentDiagram, useSidebarOpen, useUIActions } from '@/lib/stores/hooks';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { ChevronDown, Download, Menu, RotateCcw, Save, Share2 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';

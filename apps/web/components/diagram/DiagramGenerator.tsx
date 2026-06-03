@@ -6,7 +6,7 @@
  */
 import { useModelManager } from '@/lib/hooks/useModelManager';
 import { useSidebarOpen } from '@/lib/stores/hooks';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Bot } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import ConversationalDiagramPanel from '../chat';

@@ -2,36 +2,18 @@
  * AI Agent 管理服务
  * 统一管理不同的 AI Agent 实例，提供会话级隔离
  */
-import type { AIModelConfig } from '@/types/types';
-import { DiagramAgent, DiagramAgentFactory, type DiagramGenerationRequest, type DiagramGenerationResult } from '../agents/DiagramAgent';
+import { BladeDiagramAgent } from '../agents/BladeDiagramAgent';
+import type { AgentConfig, DiagramGenerationRequest, DiagramGenerationResult, ManagedDiagramAgent } from '../agents/types';
 
-export interface AgentConfig {
-  apiKey: string;
-  provider: 'volcengine' | 'openai' | 'anthropic' | 'qwen';
-  modelName?: string;
-  temperature?: number;
-  maxTokens?: number;
-  enableMemory?: boolean;
-  endpoint?: string;
-}
-
-export type ManagedDiagramAgent = Pick<
-  DiagramAgent,
-  'generateDiagram' | 'optimizeDiagram' | 'clearHistory' | 'getConversationHistory' | 'supportsStreaming'
-> & {
-  setConversationHistory?: (history: Array<{role: string, content: string}>) => void;
-};
+export type { AgentConfig, ManagedDiagramAgent };
 
 export class AgentManager {
   private agents: Map<string, ManagedDiagramAgent> = new Map();
-  private sessionAgents: Map<string, Map<string, ManagedDiagramAgent>> = new Map(); // sessionId -> modelKey -> agent
+  private sessionAgents: Map<string, Map<string, ManagedDiagramAgent>> = new Map();
   private defaultAgent: ManagedDiagramAgent | null = null;
-  private readonly agentFactory?: (config: AgentConfig) => ManagedDiagramAgent;
+  private readonly agentFactory: (config: AgentConfig) => ManagedDiagramAgent;
 
-  /**
-   * 初始化 Agent Manager
-   */
-  constructor(agentFactory?: (config: AgentConfig) => ManagedDiagramAgent) {
+  constructor(agentFactory: (config: AgentConfig) => ManagedDiagramAgent = (config) => new BladeDiagramAgent(config)) {
     this.agentFactory = agentFactory;
     this.initializeDefaultAgent();
   }
@@ -82,68 +64,18 @@ export class AgentManager {
    */
   registerAgent(key: string, config: AgentConfig): void {
     const agent = this.createAgent(config);
-
     this.agents.set(key, agent);
-    console.log(`Agent registered: ${key} (${config.provider}, engine=${this.agentFactory ? 'blade' : 'legacy'})`);
+    console.log(`Agent registered: ${key} (${config.provider})`);
   }
 
   private createAgent(config: AgentConfig): ManagedDiagramAgent {
-    if (this.agentFactory) {
-      return this.agentFactory(config);
-    }
-
-    switch (config.provider) {
-      case 'volcengine':
-        return DiagramAgentFactory.createVolcengineAgent({
-          apiKey: config.apiKey,
-          modelName: config.modelName,
-          temperature: config.temperature,
-          maxTokens: config.maxTokens,
-          enableMemory: config.enableMemory
-        });
-        break;
-
-      case 'openai':
-        return DiagramAgentFactory.createOpenAIAgent({
-          apiKey: config.apiKey,
-          modelName: config.modelName,
-          temperature: config.temperature,
-          maxTokens: config.maxTokens,
-          enableMemory: config.enableMemory
-        });
-        break;
-
-      case 'anthropic':
-        return DiagramAgentFactory.createClaudeAgent({
-          apiKey: config.apiKey,
-          modelName: config.modelName,
-          temperature: config.temperature,
-          maxTokens: config.maxTokens,
-          enableMemory: config.enableMemory
-        });
-        break;
-
-      case 'qwen':
-        return DiagramAgentFactory.createQwenAgent({
-          apiKey: config.apiKey,
-          endpoint: config.endpoint,
-          modelName: config.modelName,
-          temperature: config.temperature,
-          maxTokens: config.maxTokens,
-          enableMemory: config.enableMemory
-        });
-        break;
-
-      default:
-        throw new Error(`Unsupported provider: ${config.provider}`);
-    }
+    return this.agentFactory(config);
   }
 
   /**
    * 获取 Agent（支持会话隔离）
    */
   getAgent(key?: string, sessionId?: string): ManagedDiagramAgent | null {
-    // 如果提供了sessionId，优先从会话级Agent中获取
     if (sessionId) {
       const sessionAgents = this.sessionAgents.get(sessionId);
       if (sessionAgents) {
@@ -153,11 +85,9 @@ export class AgentManager {
         }
       }
       
-      // 如果会话级Agent不存在，创建一个新的
       return this.createSessionAgent(key || 'default', sessionId);
     }
     
-    // 没有sessionId时，使用全局Agent（向后兼容）
     if (!key) {
       return this.defaultAgent;
     }
@@ -168,17 +98,14 @@ export class AgentManager {
    * 创建会话级Agent
    */
   private createSessionAgent(agentKey: string, sessionId: string): ManagedDiagramAgent | null {
-    // 获取全局Agent配置作为模板
     const templateAgent = this.agents.get(agentKey) || this.defaultAgent;
     if (!templateAgent) {
       console.warn(`No template agent found for key: ${agentKey}`);
       return null;
     }
 
-    // 创建新的Agent实例（复制配置但独立历史）
     let newAgent: ManagedDiagramAgent;
     
-    // 根据默认Agent的类型创建相应的新实例
     if (agentKey.includes('volcengine') || !agentKey.includes('-')) {
       const arkApiKey = process.env.NEXT_PUBLIC_ARK_API_KEY;
       if (!arkApiKey) return null;
@@ -229,7 +156,6 @@ export class AgentManager {
         enableMemory: true
       });
     } else {
-      // 默认使用火山引擎
       const arkApiKey = process.env.NEXT_PUBLIC_ARK_API_KEY;
       if (!arkApiKey) return null;
       
@@ -243,7 +169,6 @@ export class AgentManager {
       });
     }
 
-    // 存储到会话级Agent映射中
     if (!this.sessionAgents.has(sessionId)) {
       this.sessionAgents.set(sessionId, new Map());
     }
@@ -274,7 +199,6 @@ export class AgentManager {
     this.agents.forEach(agent => agent.clearHistory());
     this.defaultAgent?.clearHistory();
     
-    // 清空所有会话级Agent的历史
     this.sessionAgents.forEach(sessionMap => {
       sessionMap.forEach(agent => agent.clearHistory());
     });
@@ -337,10 +261,8 @@ export class AgentManager {
    * 初始化默认 Agent
    */
   private initializeDefaultAgent(): void {
-    // 从环境变量获取配置
     const arkApiKey = process.env.NEXT_PUBLIC_ARK_API_KEY;
     const arkModelName = process.env.NEXT_PUBLIC_ARK_MODEL_NAME || 'ep-20250617131345-rshkp';
-    const arkEndpoint = process.env.NEXT_PUBLIC_ARK_ENDPOINT || 'https://ark.cn-beijing.volces.com/api/v3';
     
     const openaiApiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
     const openaiModelName = process.env.NEXT_PUBLIC_OPENAI_MODEL_NAME || 'gpt-4';
@@ -361,7 +283,6 @@ export class AgentManager {
     console.log('- NEXT_PUBLIC_ANTHROPIC_API_KEY:', anthropicApiKey ? '已配置' : '未配置');
     console.log('- NEXT_PUBLIC_QWEN_API_KEY:', qwenApiKey ? '已配置' : '未配置');
 
-    // 优先级：火山引擎 > Qwen > OpenAI > Claude
     if (arkApiKey) {
       console.log('使用火山引擎作为默认 Agent');
       this.registerAgent('volcengine-default', {
@@ -409,35 +330,6 @@ export class AgentManager {
       this.setDefaultAgent('anthropic-default');
     } else {
       console.warn('AgentManager: 未找到任何 API 密钥配置，将不会设置默认 Agent。请在 .env.local 文件中配置 NEXT_PUBLIC_ARK_API_KEY、NEXT_PUBLIC_OPENAI_API_KEY、NEXT_PUBLIC_ANTHROPIC_API_KEY 或 NEXT_PUBLIC_QWEN_API_KEY');
-      console.warn('AgentManager: 当前可用的 Agent 列表:', this.getAvailableAgents());
-    }
-  }
-
-  /**
-   * 从 AIModelConfig 创建 Agent
-   */
-  createAgentFromConfig(config: AIModelConfig): DiagramAgent {
-    const agentConfig: AgentConfig = {
-      apiKey: config.apiKey || '',
-      provider: config.provider as 'volcengine' | 'openai' | 'anthropic' | 'qwen',
-      modelName: config.model,
-      temperature: config.temperature,
-      maxTokens: config.maxTokens,
-      enableMemory: true,
-      endpoint: config.endpoint
-    };
-
-    switch (config.provider) {
-      case 'volcengine':
-        return DiagramAgentFactory.createVolcengineAgent(agentConfig);
-      case 'openai':
-        return DiagramAgentFactory.createOpenAIAgent(agentConfig);
-      case 'anthropic':
-        return DiagramAgentFactory.createClaudeAgent(agentConfig);
-      case 'qwen':
-        return DiagramAgentFactory.createQwenAgent(agentConfig);
-      default:
-        throw new Error(`Unsupported provider: ${config.provider}`);
     }
   }
 
@@ -477,14 +369,13 @@ export class AgentManager {
     } catch (error) {
       return {
         success: false,
-        message: `Agent 测试失败: ${error.message}`,
+        message: `Agent 测试失败: ${(error as Error).message}`,
         details: {
-          error: error.message
+          error: (error as Error).message
         }
       };
     }
   }
-
 }
 
 // 全局 Agent Manager 实例

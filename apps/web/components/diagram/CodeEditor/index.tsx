@@ -6,7 +6,7 @@ import { EditorView } from '@codemirror/view';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 import CodeMirror from '@uiw/react-codemirror';
 import { mermaid } from 'codemirror-lang-mermaid';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Code, Copy, Download } from 'lucide-react';
 import React from 'react';
 import toast from 'react-hot-toast';

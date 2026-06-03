@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Minus } from 'lucide-react';
 import React, { ReactNode, useEffect, useRef, useState } from 'react';
 

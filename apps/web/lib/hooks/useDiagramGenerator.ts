@@ -1,10 +1,10 @@
 /**
  * 架构图生成相关Hook
- * 使用 Zustand 状态管理，基于 LangChain Agent 的新架构
+ * 使用 Zustand 状态管理，基于 Blade SDK Agent 架构
  */
 import type { AIModelConfig, DiagramData, DirectCallConfig } from '@/types/types';
 import { toast } from 'react-hot-toast';
-import type { DiagramGenerationRequest } from '../agents/DiagramAgent';
+import type { DiagramGenerationRequest } from '../agents/types';
 import { agentManager } from '../services/AgentManager';
 import { useAppStore } from '../stores/appStore';
 import {

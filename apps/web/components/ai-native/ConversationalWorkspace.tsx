@@ -3,7 +3,7 @@
  * AI对话的核心区域，包含聊天界面和快速操作
  */
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { MessageSquare, Zap, History, Settings } from 'lucide-react';
 import ConversationalDiagramPanel from '../chat';
 

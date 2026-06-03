@@ -1,126 +1,100 @@
 #!/usr/bin/env node
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 
-import { mcpTools, validateInput } from './tools.js';
 import { handleValidateMermaid, handleGetDiagramTemplates, handleOptimizeDiagram, handleConvertDiagramFormat } from './handlers.js';
 
 /**
- * MCP Mermaid 服务器
+ * MCP Mermaid 服务器 (SDK v1.x)
  */
-class MermaidMCPServer {
-  private server: Server;
+const server = new McpServer({
+  name: '@flowmind/mcp-server',
+  version: '0.1.0',
+});
 
-  constructor() {
-    this.server = new Server(
-      {
-        name: '@flowmind/mcp-server',
-        version: '0.1.0',
-        description: 'MCP server for Mermaid diagram generation and validation'
-      },
-      {
-        capabilities: {
-          tools: {}
-        }
-      }
-    );
-
-    this.setupHandlers();
+// validate_mermaid
+server.tool(
+  'validate_mermaid',
+  `验证 Mermaid 图表语法的正确性。
+检查语法是否正确、提供错误信息和行号、给出修复建议、支持所有 Mermaid 图表类型。`,
+  {
+    mermaidCode: z.string().min(1).describe('要验证的 Mermaid 图表代码'),
+    strict: z.boolean().default(false).describe('是否启用严格模式验证'),
+  },
+  async (args) => {
+    return await handleValidateMermaid(args);
   }
+);
 
-  /**
-   * 设置请求处理器
-   */
-  private setupHandlers(): void {
-    // 处理工具列表请求
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      return {
-        tools: mcpTools
-      };
-    });
-
-    // 处理工具调用请求
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-
-      try {
-        // 验证输入参数
-        const validatedArgs = validateInput(name, args);
-
-        // 根据工具名称分发到对应的处理器
-        switch (name) {
-          case 'validate_mermaid':
-            return await handleValidateMermaid(validatedArgs);
-          
-          case 'get_diagram_templates':
-            return await handleGetDiagramTemplates(validatedArgs);
-          
-          case 'optimize_diagram':
-            return await handleOptimizeDiagram(validatedArgs);
-          
-          case 'convert_diagram_format':
-            return await handleConvertDiagramFormat(validatedArgs);
-          
-          default:
-            throw new Error(`Unknown tool: ${name}`);
-        }
-      } catch (error) {
-        // 统一错误处理
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        return {
-          content: [{
-            type: 'text',
-            text: `❌ **工具调用失败**
-
-工具名称: ${name}
-错误信息: ${errorMessage}
-
-请检查输入参数是否正确。`
-          }]
-        };
-      }
-    });
+// get_diagram_templates
+server.tool(
+  'get_diagram_templates',
+  `获取预定义的 Mermaid 图表模板。
+提供多种图表类型模板、不同复杂度示例、针对不同用例的模板和完整示例代码。`,
+  {
+    diagramType: z.enum([
+      'flowchart', 'sequence', 'class', 'er', 'gantt',
+      'pie', 'journey', 'gitgraph', 'mindmap', 'timeline'
+    ]).optional().describe('图表类型'),
+    useCase: z.enum([
+      'software-architecture', 'business-process', 'database-design',
+      'project-management', 'general'
+    ]).optional().describe('使用场景'),
+    complexity: z.enum(['simple', 'medium', 'complex']).optional().describe('复杂度级别'),
+  },
+  async (args) => {
+    return await handleGetDiagramTemplates(args);
   }
+);
 
-  /**
-   * 启动服务器
-   */
-  public async start(): Promise<void> {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    
-    // 优雅关闭处理
-    process.on('SIGINT', async () => {
-      await this.server.close();
-      process.exit(0);
-    });
-
-    process.on('SIGTERM', async () => {
-      await this.server.close();
-      process.exit(0);
-    });
+// optimize_diagram
+server.tool(
+  'optimize_diagram',
+  `优化 Mermaid 图表的布局和可读性。
+自动优化布局和结构、提供可读性改进建议、分析复杂度并给出优化方案。`,
+  {
+    mermaidCode: z.string().min(1).describe('要优化的 Mermaid 图表代码'),
+    goals: z.array(z.enum(['readability', 'compactness', 'aesthetics', 'accessibility']))
+      .default(['readability']).describe('优化目标'),
+    preserveSemantics: z.boolean().default(true).describe('是否保持语义不变'),
+    maxSuggestions: z.number().min(1).max(10).default(5).describe('最大建议数量'),
+  },
+  async (args) => {
+    return await handleOptimizeDiagram(args);
   }
-}
+);
 
-// 启动服务器
+// convert_diagram_format
+server.tool(
+  'convert_diagram_format',
+  `转换 Mermaid 图表格式或优化现有格式。
+转换不同图表类型、优化语法结构、标准化格式。`,
+  {
+    mermaidCode: z.string().min(1).describe('要转换的 Mermaid 图表代码'),
+    targetFormat: z.enum([
+      'flowchart', 'sequence', 'class', 'er', 'gantt',
+      'pie', 'journey', 'gitgraph', 'auto'
+    ]).default('auto').describe('目标格式（auto 为自动选择）'),
+    optimizeStructure: z.boolean().default(true).describe('是否优化结构'),
+  },
+  async (args) => {
+    return await handleConvertDiagramFormat(args);
+  }
+);
+
+/**
+ * 启动服务器
+ */
 async function main() {
-  try {
-    const server = new MermaidMCPServer();
-    await server.start();
-  } catch (error) {
-    console.error('Failed to start MCP server:', error);
-    process.exit(1);
-  }
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
 }
 
-// 仅在直接运行时启动服务器
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch(console.error);
-}
+main().catch((error) => {
+  console.error('Failed to start MCP server:', error);
+  process.exit(1);
+});
 
-export { MermaidMCPServer };
+export { server };

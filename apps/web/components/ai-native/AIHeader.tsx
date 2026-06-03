@@ -4,7 +4,7 @@
  * AI 助手头部组件
  * 展示AI身份、状态和基本控制
  */
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Bot, Sparkles, Settings } from 'lucide-react';
 import React from 'react';
 

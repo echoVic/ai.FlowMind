@@ -3,7 +3,7 @@
  * 使用 Zustand 状态管理，显示历史记录、模板库和设置
  */
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { History, Bookmark, Settings, Trash2, Calendar } from 'lucide-react';
 import { useSidebarOpen } from '@/lib/stores/hooks';
 import { useDiagramHistory } from '@/lib/hooks/useDiagramHistory';

@@ -3,7 +3,7 @@
  * 重新设计为辅助角色，提供代码编辑、预览等工具功能
  */
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Code, 
   Eye, 

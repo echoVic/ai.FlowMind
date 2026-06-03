@@ -3,7 +3,7 @@
  * 使用 Zustand 状态管理，提供架构图保存功能
  */
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { X, Save, Tag } from 'lucide-react';
 import { useCurrentDiagram } from '@/lib/stores/hooks';
 import { useAppStore } from '@/lib/stores/appStore';
